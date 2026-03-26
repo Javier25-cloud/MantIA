@@ -1,0 +1,14 @@
+# Ignorar librerías pesadas
+node_modules/
+
+# Ignorar secretos y contraseñas
+.env
+*.env
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar carpetas de construcción
+dist/
+build/
