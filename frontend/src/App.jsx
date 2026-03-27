@@ -47,7 +47,7 @@ function App() {
       setStatus(`Analizado: "${text}"`);
       
       try {
-        const res = await fetch('http://localhost:3000/api/process-text', {
+        const res = await fetch('https://mantia-backend.onrender.com/api/process-text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text, empresa_id: user.empresa_id })

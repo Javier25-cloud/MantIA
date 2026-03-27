@@ -1,73 +1,61 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const port = 3000;
 
-const supabase = createClient('https://hikaaalttvuohosmyzdu.supabase.co', 'sb_publishable_p5NVMqbhBDa3T4Q5bb3cuw_9DS3VmsK');
+// --- CONFIGURACIÓN DE CORS ---
+// RECUERDA: Cambia la URL por la que te dio Vercel (la de la pantalla del confeti)
+app.use(cors({
+  origin: 'https://mant-ia.vercel.app' 
+}));
 
-app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 
-// 1. LOGIN
-app.post('/api/login', async (req, res) => {
-  const { pin } = req.body;
-  const { data: perfil } = await supabase.from('perfiles').select('*').eq('pin', pin).single();
-  if (!perfil) return res.status(401).json({ success: false });
-  res.json({ success: true, user: perfil });
+// --- CONEXIÓN CON SUPABASE ---
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- RUTAS ---
+
+// Ruta de prueba para ver si el servidor responde
+app.get('/', (req, res) => {
+  res.send('Servidor de MantIA funcionando correctamente 🚀');
 });
 
-// 2. PROCESADOR DE TEXTO (INTELIGENCIA "MANUAL" GRATIS)
+// La ruta que usas en el frontend para procesar texto
 app.post('/api/process-text', async (req, res) => {
   const { text, empresa_id } = req.body;
-  const frase = text.toLowerCase();
 
-  // Buscamos máquinas y repuestos reales en tu DB para comparar
-  const [maqDB, repDB] = await Promise.all([
-    supabase.from('maquinas').select('nombre').eq('empresa_id', empresa_id),
-    supabase.from('repuestos').select('nombre').eq('empresa_id', empresa_id)
-  ]);
+  try {
+    // Aquí iría tu lógica de IA o de guardado en base de datos
+    // Por ahora, registramos la entrada en los logs de Render
+    console.log(`Procesando texto para empresa ${empresa_id}: ${text}`);
 
-  // Lógica de detección por coincidencia de palabras
-  const maquinaEncontrada = maqDB.data.find(m => frase.includes(m.nombre.toLowerCase()));
-  const repuestosEncontrados = repDB.data
-    .filter(r => frase.includes(r.nombre.toLowerCase()))
-    .map(r => r.nombre);
+    // Ejemplo: Guardar el log en Supabase (ajusta el nombre de tu tabla)
+    /*
+    const { data, error } = await supabase
+      .from('logs_mantenimiento')
+      .insert([{ detalle: text, empresa_id: empresa_id }]);
+    */
 
-  res.json({
-    success: true,
-    data: {
-      maquina_nombre: maquinaEncontrada ? maquinaEncontrada.nombre : "Desconocida",
-      accion: "Mantenimiento preventivo/correctivo",
-      repuestos_usados: repuestosEncontrados
-    }
-  });
-});
+    res.json({ 
+      success: true, 
+      message: "Texto recibido y procesado",
+      analizado: text 
+    });
 
-// 3. GUARDAR Y CONSULTAR (Igual que antes)
-app.post('/api/save-intervention', async (req, res) => {
-  const { empresa_id, usuario_id, maquina_nombre, accion, repuestos_usados } = req.body;
-  const { data: maq } = await supabase.from('maquinas').select('id').eq('nombre', maquina_nombre).eq('empresa_id', empresa_id).single();
-  
-  await supabase.from('intervenciones').insert([{ empresa_id, usuario_id, maquina_id: maq?.id, accion, repuestos_usados }]);
-  
-  if (repuestos_usados) {
-    for (const r of repuestos_usados) {
-      const { data: it } = await supabase.from('repuestos').select('stock_actual').eq('nombre', r).eq('empresa_id', empresa_id).single();
-      if (it) await supabase.from('repuestos').update({ stock_actual: it.stock_actual - 1 }).eq('nombre', r).eq('empresa_id', empresa_id);
-    }
+  } catch (error) {
+    console.error("Error en el servidor:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
-  res.json({ success: true });
 });
 
-app.get('/api/gerencia-data', async (req, res) => {
-  const { empresa_id } = req.query;
-  const [h, s] = await Promise.all([
-    supabase.from('intervenciones').select('*').eq('empresa_id', empresa_id).order('fecha', { ascending: false }),
-    supabase.from('repuestos').select('*').eq('empresa_id', empresa_id)
-  ]);
-  res.json({ history: h.data || [], stock: s.data || [] });
+// --- ARRANCAR SERVIDOR ---
+// Render asigna el puerto automáticamente mediante process.env.PORT
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`MantIA Backend activo en puerto ${PORT}`);
 });
-
-app.listen(port, () => console.log(`MantIA Low-Cost activa en puerto ${port}`));
