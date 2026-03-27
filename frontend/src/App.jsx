@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+const API_URL = "https://mantia-backend.onrender.com";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -71,7 +72,7 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await fetch('http://localhost:3000/api/login', {
+    const res = await fetch('${API_URL}/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: pinInput })
@@ -83,14 +84,14 @@ function App() {
 
   useEffect(() => {
     if (user && view === 'gerencia') {
-      fetch(`http://localhost:3000/api/gerencia-data?empresa_id=${user.empresa_id}`)
+      fetch(`${API_URL}/api/gerencia-data?empresa_id=${user.empresa_id}`)
         .then(r => r.json()).then(data => { setHistory(data.history); setStock(data.stock); });
     }
   }, [view, user]);
 
   const saveToDB = async () => {
     setStatus('Guardando...');
-    await fetch('http://localhost:3000/api/save-intervention', {
+    await fetch('${API_URL}/api/save-intervention', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id }),
