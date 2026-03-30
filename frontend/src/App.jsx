@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
-import { QRCodeCanvas } from 'qrcode.react'; // Librería QR
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'; // Gráficas
+import { QRCodeCanvas } from 'qrcode.react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import './App.css';
 
 const API_URL = "https://mantia-backend.onrender.com";
@@ -11,30 +10,27 @@ function App() {
   const [user, setUser] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [view, setView] = useState('operario');
+  const [subView, setSubView] = useState('resumen'); // Sub-navegación de gerencia
   const [status, setStatus] = useState('');
   const [iaData, setIaData] = useState(null);
   const [history, setHistory] = useState([]);
   const [stock, setStock] = useState([]);
-  const [stats, setStats] = useState([]);
+  const [maquinas, setMaquinas] = useState([]);
+  const [chartData, setChartData] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [showQR, setShowQR] = useState(null); // Para mostrar el modal de QR
+  const [showQR, setShowQR] = useState(null);
 
-  const fetchGerenciaData = async () => {
+  const fetchData = async () => {
     if (!user) return;
-    const [resData, resStats] = await Promise.all([
-      fetch(`${API_URL}/api/gerencia-data?empresa_id=${user.empresa_id}`),
-      fetch(`${API_URL}/api/stats?empresa_id=${user.empresa_id}`)
-    ]);
-    const data = await resData.json();
-    const statsData = await resStats.json();
+    const res = await fetch(`${API_URL}/api/gerencia-data?empresa_id=${user.empresa_id}`);
+    const data = await res.json();
     setHistory(data.history || []);
     setStock(data.stock || []);
-    setStats(statsData.chartData || []);
+    setMaquinas(data.maquinas || []);
+    setChartData(data.chartData || []);
   };
 
-  useEffect(() => {
-    if (user && view === 'gerencia') fetchGerenciaData();
-  }, [view, user]);
+  useEffect(() => { if (user && view === 'gerencia') fetchData(); }, [view, user]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -50,7 +46,7 @@ function App() {
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
     rec.onresult = async (e) => {
       const text = e.results[0][0].transcript;
-      setStatus(`Procesando con Gemini...`);
+      setStatus(`Analizando...`);
       const res = await fetch(`${API_URL}/api/process-text`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
       const r = await res.json();
       setIaData(r.data);
@@ -65,7 +61,7 @@ function App() {
     await fetch(`${API_URL}/api/save-intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id }) });
     setStatus('✅ Registrado');
     setIaData(null);
-    fetchGerenciaData();
+    fetchData();
     setTimeout(() => setStatus(''), 2000);
   };
 
@@ -73,7 +69,7 @@ function App() {
     <div className="container login-screen">
       <header className="header"><h1>MantIA</h1></header>
       <form onSubmit={handleLogin} className="main-content">
-        <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="PIN 1234" autoFocus />
+        <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="Introduce PIN" autoFocus />
         <button type="submit" className="confirm-button">ENTRAR</button>
       </form>
     </div>
@@ -82,93 +78,123 @@ function App() {
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1000px' : '450px'}}>
       <nav className="nav-tabs">
-        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Operario</button>
+        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
         {user.rol === 'gerente' && <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>}
       </nav>
 
       {view === 'operario' ? (
-        <main className="main-content">
-          <div className="card-instruction">Pulsa y describe la reparación</div>
+        <main className="main-content animate-in">
           <button className={`record-button ${isRecording ? 'recording' : ''}`} onClick={startListening}>🎤</button>
           {status && <p className="status-msg">{status}</p>}
           {iaData && (
-            <div className="ia-card animate-in">
-              <h3>Detección Inteligente</h3>
+            <div className="ia-card">
+              <h3>Detección IA</h3>
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
-              <p><strong>Repuestos:</strong> {iaData.repuestos_usados?.join(', ')}</p>
+              <p><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
               <button className="confirm-button" onClick={saveToDB}>Confirmar Registro</button>
             </div>
           )}
         </main>
       ) : (
         <div className="dashboard-view animate-in">
-          {/* SECCIÓN GRÁFICAS */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <h4>Top Máquinas (Intervenciones)</h4>
-              <div style={{height: '250px'}}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats}>
-                    <XAxis dataKey="name" hide />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="value">
-                      {stats.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="stat-card summary">
-              <div className="big-number">{history.length}</div>
-              <p>Intervenciones Totales</p>
-              <div className="big-number" style={{color: '#ef4444'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
-              <p>Alertas de Stock</p>
-            </div>
+          {/* SUB-NAVEGACIÓN INTERNA DE GERENCIA */}
+          <div className="sub-nav">
+            <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
+            <button className={subView === 'maquinas' ? 's-active' : ''} onClick={()=>setSubView('maquinas')}>Máquinas</button>
+            <button className={subView === 'historial' ? 's-active' : ''} onClick={()=>setSubView('historial')}>Historial</button>
+            <button className={subView === 'inventario' ? 's-active' : ''} onClick={()=>setSubView('inventario')}>Inventario</button>
           </div>
 
-          {/* TABLA HISTORIAL */}
-          <div className="section-header"><h3>📋 Historial</h3></div>
-          <table className="history-table">
-            <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th><th></th></tr></thead>
-            <tbody>
-              {history.map(h => (
-                <tr key={h.id}>
-                  <td>{new Date(h.fecha).toLocaleDateString()}</td>
-                  <td>{h.maquina}</td>
-                  <td>{h.repuestos?.join(', ')}</td>
-                  <td><button onClick={async ()=>{await fetch(`${API_URL}/api/delete-intervention/${h.id}`, {method:'DELETE'}); fetchGerenciaData();}} className="action-btn">🗑️</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* CONTENIDO DINÁMICO SEGÚN SUB-VISTA */}
+          {subView === 'resumen' && (
+            <div className="stats-section animate-in">
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h4>Averías por Máquina</h4>
+                  <div style={{height: '250px'}}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} layout="vertical">
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px'}} />
+                        <Tooltip />
+                        <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                          {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="stat-card summary">
+                  <div className="big-number">{history.length}</div>
+                  <p>Intervenciones Totales</p>
+                  <div className="big-number" style={{color: '#ef4444'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
+                  <p>Alertas de Stock</p>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* TABLA INVENTARIO + QR */}
-          <div className="section-header" style={{marginTop:'30px'}}><h3>📦 Inventario y QRs</h3></div>
-          <table className="history-table">
-            <thead><tr><th>Repuesto / Máquina</th><th>Stock</th><th>Estado</th><th>QR</th></tr></thead>
-            <tbody>
-              {stock.map(s => (
-                <tr key={s.id} className={s.stock_actual <= s.stock_minimo ? 'row-critical' : ''}>
-                  <td>{s.nombre}</td>
-                  <td style={{fontWeight:'bold'}}>{s.stock_actual}</td>
-                  <td>{s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}</td>
-                  <td><button onClick={()=>setShowQR(s.nombre)} className="action-btn">🖼️</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {subView === 'maquinas' && (
+            <div className="maquinas-section animate-in">
+              <div className="machine-grid">
+                {maquinas.map(m => (
+                  <div key={m.id} className="machine-item">
+                    <span>{m.nombre}</span>
+                    <button onClick={() => setShowQR(m.nombre)} className="qr-btn">🖼️ Generar QR</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {subView === 'historial' && (
+            <div className="historial-section animate-in">
+              <table className="history-table">
+                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th><th></th></tr></thead>
+                <tbody>
+                  {history.map(h => (
+                    <tr key={h.id}>
+                      <td>{new Date(h.fecha).toLocaleDateString()}</td>
+                      <td>{h.maquina}</td>
+                      <td>{h.repuestos?.join(', ')}</td>
+                      <td><button onClick={async ()=>{await fetch(`${API_URL}/api/delete-intervention/${h.id}`, {method:'DELETE'}); fetchData();}} className="action-btn">🗑️</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {subView === 'inventario' && (
+            <div className="inventario-section animate-in">
+              <table className="history-table">
+                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th><th>Acción</th></tr></thead>
+                <tbody>
+                  {stock.map(s => (
+                    <tr key={s.id} className={s.stock_actual <= s.stock_minimo ? 'row-critical' : ''}>
+                      <td>{s.nombre}</td>
+                      <td>{s.stock_actual}</td>
+                      <td>{s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}</td>
+                      <td><button onClick={()=> {
+                        const n = prompt("Nuevo stock:", s.stock_actual);
+                        if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
+                      }} className="action-btn">✏️</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión</button>
         </div>
       )}
 
-      {/* MODAL QR */}
       {showQR && (
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
-          <div className="modal-content" onClick={e=>e.stopPropagation()}>
-            <h3>Código QR: {showQR}</h3>
-            <QRCodeCanvas value={`MACHINE:${showQR}`} size={200} />
-            <p>Pega este código en la máquina para identificarla.</p>
+          <div className="modal-content">
+            <h3>QR: {showQR}</h3>
+            <QRCodeCanvas value={`ID:${showQR}`} size={180} />
+            <p>Pega este código en el chasis de la máquina.</p>
             <button onClick={()=>setShowQR(null)} className="confirm-button">Cerrar</button>
           </div>
         </div>
