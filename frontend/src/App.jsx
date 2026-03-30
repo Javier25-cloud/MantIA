@@ -30,7 +30,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setChartData(data.chartData || []);
-    } catch (err) { console.error("Error cargando datos", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => {
@@ -50,7 +50,7 @@ function App() {
   };
 
   const startListening = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitRecognition;
     const rec = new SpeechRecognition();
     rec.lang = 'es-ES';
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
@@ -98,12 +98,9 @@ function App() {
   };
 
   if (!user) return (
-    <div className="container" style={{justifyContent: 'center', height: '80vh'}}>
-
-<div style={{ textAlign: 'center', marginBottom: '30px' }}>
-  <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px', width: 'auto' }} />
-</div>
-      <div className="login-card">
+    <div className="container login-screen">
+      <img src="/logo.png" alt="MantIA Logo" style={{ height: '100px', marginBottom: '30px' }} />
+      <div className="login-card animate-in">
         <form onSubmit={handleLogin}>
           <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
           <button type="submit" className="confirm-button">ENTRAR</button>
@@ -113,26 +110,27 @@ function App() {
   );
 
   return (
-    <div className="container" style={{maxWidth: view === 'gerencia' ? '1000px' : '450px'}}>
-<div style={{ textAlign: 'center', marginBottom: '20px' }}>
-  <img src="/logo.png" alt="MantIA Logo" style={{ height: '50px', width: 'auto' }} />
-</div>
+    <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
+      <header style={{textAlign:'center', marginBottom:'20px'}}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '60px' }} />
+      </header>
+      
       <nav className="nav-tabs">
         <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
       </nav>
 
       {view === 'operario' ? (
-        <main style={{textAlign:'center'}}>
+        <main className="main-content animate-in">
           <div className="voice-section">
             <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}>
-              <span style={{fontSize: '4rem'}}>🎤</span>
+              <span style={{fontSize:'4rem'}}>🎤</span>
             </button>
-            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
+            <p className="voice-label">{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
             {status && <div className="status-pill status-ok" style={{marginTop:'15px', display:'inline-block'}}>{status}</div>}
           </div>
           {iaData && (
-            <div className="ia-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', textAlign:'left'}}>
+            <div className="ia-card">
               <h3>Detección IA</h3>
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
               <p><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
@@ -144,12 +142,12 @@ function App() {
                 });
                 setIaData(null);
                 alert("Guardado");
-              }}>CONFIRMAR REGISTRO</button>
+              }}>CONFIRMAR</button>
             </div>
           )}
         </main>
       ) : (
-        <div className="dashboard-view">
+        <div className="dashboard-view animate-in">
           <div className="sub-nav">
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
             <button className={subView === 'maquinas' ? 's-active' : ''} onClick={()=>setSubView('maquinas')}>Máquinas</button>
@@ -158,15 +156,15 @@ function App() {
           </div>
 
           {subView === 'resumen' && (
-            <div className="stats-grid" style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
-              <div className="stat-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px'}}>
-                <h4 style={{margin:'0 0 20px 0', color:'#94a3b8'}}>Frecuencia de Averías</h4>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <h4>Frecuencia de Averías</h4>
                 <div style={{height: '250px'}}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} layout="vertical">
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
-                      <Tooltip cursor={{fill: 'transparent'}} />
+                      <Tooltip cursor={{fill:'transparent'}} />
                       <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
                         {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Bar>
@@ -174,11 +172,11 @@ function App() {
                   </ResponsiveContainer>
                 </div>
               </div>
-              <div className="stat-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'center'}}>
-                <div style={{fontSize:'3rem', fontWeight:'800', color:'#6366f1'}}>{history.length}</div>
+              <div className="stat-card summary">
+                <span className="big-number">{history.length}</span>
                 <p>Intervenciones</p>
-                <div style={{fontSize:'3rem', fontWeight:'800', color:'#ef4444'}}>{stock.filter(s=>s.stock_actual<=s.stock_minimo).length}</div>
-                <p>Alertas Stock</p>
+                <span className="big-number" style={{color:'#ef4444'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</span>
+                <p>Stock Crítico</p>
               </div>
             </div>
           )}
@@ -195,7 +193,7 @@ function App() {
           )}
 
           {subView === 'historial' && (
-            <div>
+            <div className="section-container">
               <button className="excel-btn" onClick={()=>exportToExcel(history, "Historial")}>📥 Exportar Excel</button>
               <table className="history-table" style={{marginTop:'15px'}}>
                 <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th></tr></thead>
@@ -203,7 +201,7 @@ function App() {
                   {history.map(h => (
                     <tr key={h.id}>
                       <td>{new Date(h.fecha).toLocaleDateString()}</td>
-                      <td style={{fontWeight:'800'}}>{h.maquina}</td>
+                      <td>{h.maquina}</td>
                       <td>{h.repuestos?.join(', ')}</td>
                     </tr>
                   ))}
@@ -213,10 +211,10 @@ function App() {
           )}
 
           {subView === 'inventario' && (
-            <div>
+            <div className="section-container">
               <div className="action-bar">
-                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar Stock</button>
-                <label className="excel-btn import">📤 Importar Excel
+                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar</button>
+                <label className="excel-btn import">📤 Importar
                   <input type="file" onChange={handleImport} accept=".xlsx, .xls" hidden />
                 </label>
               </div>
@@ -232,8 +230,8 @@ function App() {
                           {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
                         </span>
                       </td>
-                      <td><button className="action-btn" onClick={()=> {
-                        const n = prompt("Nuevo stock:", s.stock_actual);
+                      <td><button className="action-btn" onClick={()=>{
+                        const n=prompt("Nuevo stock:", s.stock_actual);
                         if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
                       }}>✏️</button></td>
                     </tr>
@@ -248,10 +246,10 @@ function App() {
 
       {showQR && (
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
-          <div className="modal-content" style={{background:'white', padding:'30px', borderRadius:'20px', textAlign:'center', color:'#1e293b'}}>
-            <h3 style={{marginBottom:'20px'}}>QR: {showQR}</h3>
+          <div className="modal-content">
+            <h3>QR: {showQR}</h3>
             <QRCodeCanvas value={`ID:${showQR}`} size={180} />
-            <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'25px'}}>CERRAR</button>
+            <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'20px'}}>CERRAR</button>
           </div>
         </div>
       )}

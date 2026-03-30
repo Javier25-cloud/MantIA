@@ -11,8 +11,6 @@ app.use(express.json());
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-app.get('/', (req, res) => res.send('MantIA Backend v5: Secciones Separadas 🚀'));
-
 // LOGIN
 app.post('/api/login', (req, res) => {
   const { pinInput } = req.body;
@@ -24,7 +22,7 @@ app.post('/api/login', (req, res) => {
   } else { res.status(401).json({ success: false }); }
 });
 
-// DATOS COMPLETOS PARA GERENCIA
+// DATOS GERENCIA Y STATS
 app.get('/api/gerencia-data', async (req, res) => {
   const { empresa_id } = req.query;
   try {
@@ -34,7 +32,6 @@ app.get('/api/gerencia-data', async (req, res) => {
       supabase.from('maquinas').select('*').eq('empresa_id', empresa_id).order('nombre', { ascending: true })
     ]);
 
-    // Estadísticas para la sección de Dashboard
     const counts = {};
     history.data?.forEach(i => counts[i.maquina] = (counts[i.maquina] || 0) + 1);
     const chartData = Object.keys(counts).map(name => ({ name, valor: counts[name] }))
@@ -44,7 +41,7 @@ app.get('/api/gerencia-data', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// PROCESAR INTERVENCIÓN
+// IA PROCESAMIENTO
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
@@ -56,22 +53,36 @@ app.post('/api/process-text', async (req, res) => {
   } catch (error) { res.status(500).json({ error: "IA Error" }); }
 });
 
+// GUARDAR INTERVENCIÓN
 app.post('/api/save-intervention', async (req, res) => {
   const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
   await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
   res.json({ success: true });
 });
 
-// ACTUALIZACIONES MANUALES
-app.delete('/api/delete-intervention/:id', async (req, res) => {
-  await supabase.from('intervenciones').delete().eq('id', req.params.id);
+// IMPORTAR EXCEL
+app.post('/api/import-inventory', async (req, res) => {
+  const { items, empresa_id } = req.body;
+  const data = items.map(i => ({ 
+    nombre: i.Nombre || i.nombre, 
+    stock_actual: i.Stock_Actual || i.stock_actual, 
+    stock_minimo: i.Stock_Minimo || i.stock_minimo, 
+    empresa_id 
+  }));
+  await supabase.from('repuestos').upsert(data, { onConflict: 'nombre, empresa_id' });
   res.json({ success: true });
 });
 
+// MODIFICACIONES MANUALES
 app.put('/api/update-stock/:id', async (req, res) => {
   await supabase.from('repuestos').update({ stock_actual: req.body.nuevoStock }).eq('id', req.params.id);
   res.json({ success: true });
 });
 
+app.delete('/api/delete-intervention/:id', async (req, res) => {
+  await supabase.from('intervenciones').delete().eq('id', req.params.id);
+  res.json({ success: true });
+});
+
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Backend en puerto ${PORT}`));

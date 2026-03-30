@@ -4,13 +4,11 @@
 
 :root {
   --primary: #6366f1;
-  --primary-hover: #4f46e5;
   --bg-dark: #0f172a;
   --card-bg: #1e293b;
   --text-main: #f8fafc;
   --text-dim: #94a3b8;
-  --danger: #ef4444; /* Rojo para cerrar sesión */
-  --danger-hover: #dc2626;
+  --danger: #ef4444;
   --success: #10b981;
 }
 
@@ -23,152 +21,43 @@ body {
   justify-content: center;
 }
 
-.container {
-  width: 100%;
-  max-width: 1100px;
-  padding: 40px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+.container { width: 100%; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
 
-/* --- LOGIN --- */
-.login-screen h1 {
-  font-size: 4rem;
-  font-weight: 800;
-  margin-bottom: 20px;
-  background: linear-gradient(to right, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -2px;
-}
+.login-screen { justify-content: center; height: 80vh; }
+.login-card { background: var(--card-bg); padding: 40px; border-radius: 28px; width: 100%; max-width: 380px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+.pin-input { width: 100%; padding: 18px; border-radius: 14px; background: #0f172a; border: 2px solid #334155; color: white; font-size: 1.8rem; text-align: center; margin-bottom: 25px; }
 
-.login-card {
-  background: var(--card-bg);
-  padding: 40px;
-  border-radius: 28px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  width: 100%;
-  max-width: 380px;
-  text-align: center;
-}
-
-/* --- NAVEGACIÓN --- */
-.nav-tabs {
-  display: flex; background: var(--card-bg); padding: 6px; border-radius: 18px;
-  margin-bottom: 30px; border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.nav-tabs button {
-  padding: 12px 30px; border: none; background: transparent; color: var(--text-dim);
-  cursor: pointer; border-radius: 14px; font-weight: 700;
-}
-
+.nav-tabs { display: flex; background: var(--card-bg); padding: 6px; border-radius: 18px; margin-bottom: 30px; }
+.nav-tabs button { padding: 12px 30px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-weight: 700; border-radius: 14px; }
 .nav-tabs button.active { background: var(--primary); color: white; }
 
 .sub-nav { display: flex; gap: 8px; margin-bottom: 25px; width: 100%; }
-.sub-nav button {
-  flex: 1; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dim); border-radius: 12px; cursor: pointer; font-weight: 600;
-}
+.sub-nav button { flex: 1; padding: 12px; background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; }
 .sub-nav button.s-active { background: white; color: var(--bg-dark); font-weight: 800; }
 
-/* --- SECCIÓN MÁQUINAS (QR) --- */
-.machine-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-  width: 100%;
-}
+.record-btn-giant { width: 160px; height: 160px; border-radius: 50%; border: none; background: linear-gradient(135deg, #6366f1, #a855f7); cursor: pointer; box-shadow: 0 20px 40px rgba(99,102,241,0.4); position: relative; }
+.is-recording { animation: pulse-animation 1.5s infinite; }
+@keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.7); } 70% { box-shadow: 0 0 0 30px rgba(99,102,241,0); } 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); } }
 
-.machine-item {
-  background: white;
-  color: #1e293b;
-  padding: 25px;
-  border-radius: 20px;
-  text-align: center;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
+.machine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; width: 100%; }
+.machine-item { background: white; color: #1e293b; padding: 25px; border-radius: 20px; text-align: center; display: flex; flex-direction: column; gap: 15px; }
+.machine-name { font-weight: 800; font-size: 1.1rem; }
+.qr-btn { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 12px; font-weight: 700; cursor: pointer; }
 
-.machine-name {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.qr-btn {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  width: 100%;
-  transition: background 0.2s;
-}
-
-.qr-btn:hover { background: var(--primary-hover); }
-
-/* --- TABLAS Y EXCEL --- */
-.action-bar { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; }
-.excel-btn {
-  background: var(--success); color: white; border: none; padding: 12px 20px;
-  border-radius: 12px; font-weight: 700; cursor: pointer;
-}
-.excel-btn.import { background: var(--primary); }
-
-.history-table {
-  width: 100%; background: white; border-radius: 24px; overflow: hidden;
-  border-collapse: collapse; box-shadow: 0 20px 30px rgba(0,0,0,0.3);
-}
-
+.history-table { width: 100%; background: white; border-radius: 24px; overflow: hidden; border-collapse: collapse; }
 .history-table th { background: #f8fafc; padding: 18px; color: #64748b; font-size: 0.75rem; text-transform: uppercase; text-align: left; }
-.history-table td { padding: 16px 20px; color: #1e293b !important; border-bottom: 1px solid #f1f5f9; }
+.history-table td { padding: 16px 20px; color: #1e293b; border-bottom: 1px solid #f1f5f9; }
 
 .status-pill { padding: 6px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 800; }
 .status-ok { background: #dcfce7; color: #166534; }
 .status-warn { background: #fee2e2; color: #991b1b; }
 
-/* --- BOTÓN CERRAR SESIÓN (ROJO) --- */
-.logout-btn {
-  margin-top: 40px;
-  background: var(--danger);
-  color: white;
-  border: none;
-  padding: 15px;
-  border-radius: 16px;
-  font-weight: 800;
-  cursor: pointer;
-  width: 100%;
-  font-size: 1rem;
-  transition: background 0.2s, transform 0.1s;
-}
+.excel-btn { background: var(--success); color: white; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.excel-btn.import { background: var(--primary); }
+.action-bar { display: flex; gap: 10px; margin-bottom: 20px; }
 
-.logout-btn:hover {
-  background: var(--danger-hover);
-  transform: translateY(-2px);
-}
+.logout-btn { margin-top: 40px; background: var(--danger); color: white; border: none; padding: 15px; border-radius: 16px; font-weight: 800; cursor: pointer; width: 100%; font-size: 1rem; }
+.confirm-button { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 16px; font-weight: 800; cursor: pointer; }
 
-.logout-btn:active { transform: translateY(0); }
-
-/* --- BOTÓN VOZ GIGANTE --- */
-.record-btn-giant {
-  width: 160px; height: 160px; border-radius: 50%; border: none;
-  background: linear-gradient(135deg, #6366f1, #a855f7); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.4); position: relative;
-}
-
-.is-recording { animation: pulse-animation 1.5s infinite; }
-@keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); } 70% { box-shadow: 0 0 0 30px rgba(99, 102, 241, 0); } 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); } }
-
-.confirm-button {
-  width: 100%; padding: 18px; background: var(--primary); color: white;
-  border: none; border-radius: 16px; font-weight: 800; cursor: pointer;
-}
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-content { background: white; padding: 30px; border-radius: 20px; text-align: center; }
