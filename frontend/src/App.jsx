@@ -99,7 +99,7 @@ function App() {
 
   if (!user) return (
     <div className="container" style={{justifyContent: 'center', height: '80vh'}}>
-     // Busca donde dice <h1>MantIA</h1> y pon esto:
+
 <div style={{ textAlign: 'center', marginBottom: '30px' }}>
   <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px', width: 'auto' }} />
 </div>
