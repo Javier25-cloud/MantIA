@@ -99,7 +99,10 @@ function App() {
 
   if (!user) return (
     <div className="container" style={{justifyContent: 'center', height: '80vh'}}>
-      <h1 style={{fontSize: '4rem', fontWeight: '800', marginBottom: '20px', background: 'linear-gradient(to right, #818cf8, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>MantIA</h1>
+     // Busca donde dice <h1>MantIA</h1> y pon esto:
+<div style={{ textAlign: 'center', marginBottom: '30px' }}>
+  <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px', width: 'auto' }} />
+</div>
       <div className="login-card">
         <form onSubmit={handleLogin}>
           <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
@@ -111,6 +114,9 @@ function App() {
 
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1000px' : '450px'}}>
+<div style={{ textAlign: 'center', marginBottom: '20px' }}>
+  <img src="/logo.png" alt="MantIA Logo" style={{ height: '50px', width: 'auto' }} />
+</div>
       <nav className="nav-tabs">
         <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
