@@ -1,223 +1,133 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-
-:root {
-  --primary: #6366f1; /* Indigo moderno */
-  --primary-hover: #4f46e5;
-  --bg-dark: #0f172a;
-  --card-bg: #1e293b;
-  --text-main: #f8fafc;
-  --text-dim: #94a3b8;
-  --danger: #ef4444;
-  --success: #10b981;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-dark);
-  color: var(--text-main);
-  font-family: 'Inter', sans-serif;
-  display: flex;
-  justify-content: center;
-  min-height: 100vh;
-}
-
-.container {
-  width: 100%;
-  padding: 40px 20px;
+/* --- BOTÓN GIGANTE OPERARIO --- */
+.voice-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: all 0.3s ease;
-}
-
-/* --- LOGIN SCREEN --- */
-.login-screen {
   justify-content: center;
-  margin-top: -10vh;
+  padding: 40px 0;
 }
 
-.login-screen h1 {
-  font-size: 3.5rem; /* El título ahora manda */
-  font-weight: 800;
-  letter-spacing: -2px;
-  margin-bottom: 30px;
-  background: linear-gradient(to right, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.login-card {
-  background: var(--card-bg);
-  padding: 40px;
-  border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  width: 100%;
-  max-width: 400px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.pin-input {
-  width: 100%;
-  padding: 16px;
-  border-radius: 12px;
-  background: #0f172a;
-  border: 2px solid #334155;
-  color: white !important;
-  font-size: 1.5rem;
-  text-align: center;
-  margin-bottom: 20px;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-
-.pin-input:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-/* --- NAVEGACIÓN PRINCIPAL (Botones Reporte/Gerencia) --- */
-.nav-tabs {
-  display: flex;
-  background: var(--card-bg);
-  padding: 6px;
-  border-radius: 16px;
-  margin-bottom: 30px;
-  gap: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.nav-tabs button {
-  padding: 12px 24px;
+.record-btn-giant {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
   border: none;
-  background: transparent;
-  color: var(--text-dim);
+  background: linear-gradient(135deg, #6366f1, #a855f7);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
+  transition: transform 0.2s;
+}
+
+.record-btn-giant:active { transform: scale(0.95); }
+
+.mic-icon { font-size: 3.5rem; color: white; z-index: 2; }
+
+.pulse-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.4);
+  z-index: 1;
+}
+
+.is-recording .pulse-ring {
+  animation: pulse-animation 1.5s infinite;
+}
+
+@keyframes pulse-animation {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.voice-label {
+  margin-top: 20px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+/* --- MÁQUINAS Y QR --- */
+.machine-card {
+  background: white;
+  padding: 15px 20px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #1e293b;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.machine-name { font-weight: 800; display: block; font-size: 1.1rem; }
+.machine-loc { font-size: 0.8rem; color: #64748b; }
+
+.qr-action-btn {
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  padding: 10px 15px;
   border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 0.75rem;
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.nav-tabs button.active {
-  background: var(--primary);
-  color: white;
-  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
-}
+.qr-action-btn:hover { border-color: var(--primary); color: var(--primary); }
 
-/* --- SUB-NAVEGACIÓN (Resumen, Máquinas...) --- */
-.sub-nav {
+/* --- EXCEL ACTIONS --- */
+.action-bar {
   display: flex;
   gap: 10px;
-  margin-bottom: 25px;
-  width: 100%;
+  margin-bottom: 20px;
 }
 
-.sub-nav button {
-  flex: 1;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dim);
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-}
-
-.sub-nav button.s-active {
-  background: white;
-  color: var(--bg-dark);
-  font-weight: 700;
-}
-
-/* --- TABLAS MODERNAS --- */
-.history-table {
-  width: 100%;
-  background: white;
-  border-radius: 20px;
-  border-collapse: separate;
-  border-spacing: 0;
-  overflow: hidden;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-}
-
-.history-table th {
-  background: #f8fafc;
-  padding: 18px;
-  color: #64748b;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.history-table td {
-  padding: 16px 18px;
-  color: #1e293b !important;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.95rem;
-}
-
-.history-table tr:last-child td {
-  border-bottom: none;
-}
-
-/* Etiquetas de Estado */
-.status-pill {
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.status-ok { background: #dcfce7; color: #166534; }
-.status-warning { background: #fee2e2; color: #991b1b; }
-
-/* --- BOTONES ACCIÓN --- */
-.action-btn {
-  background: #f1f5f9;
-  border: none;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.action-btn:hover { background: #e2e8f0; }
-
-.confirm-button {
-  width: 100%;
-  padding: 16px;
-  background: var(--primary);
+.excel-btn {
+  background: #10b981;
   color: white;
   border: none;
-  border-radius: 12px;
+  padding: 12px 18px;
+  border-radius: 10px;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.8rem;
   cursor: pointer;
-  transition: background 0.2s;
+  display: inline-block;
 }
 
-.confirm-button:hover { background: var(--primary-hover); }
+.excel-btn.import { background: #6366f1; }
 
-.logout-btn {
-  margin-top: 30px;
-  background: transparent;
-  color: var(--text-dim);
-  border: 1px solid #334155;
-  padding: 12px 30px;
-  border-radius: 12px;
+/* --- TABLAS Y PILLS --- */
+.pill {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.pill.ok { background: #dcfce7; color: #166534; }
+.pill.warn { background: #fee2e2; color: #991b1b; }
+
+.edit-btn, .delete-btn {
+  background: #f1f5f9;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 600;
 }
 
-.logout-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger);
-  border-color: var(--danger);
+/* --- MODAL --- */
+.qr-wrapper {
+  background: white;
+  padding: 15px;
+  border-radius: 15px;
+  display: inline-block;
+  border: 1px solid #e2e8f0;
 }
+.qr-name { margin: 15px 0; font-weight: 800; color: #1e293b; }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { QRCodeCanvas } from 'qrcode.react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import './App.css';
@@ -29,9 +30,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setChartData(data.chartData || []);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => {
@@ -40,30 +39,25 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch(`${API_URL}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pinInput })
-      });
-      const result = await res.json();
-      if (result.success) setUser(result.user);
-      else alert("PIN Incorrecto");
-    } catch (err) {
-      alert("Error de conexión con el servidor");
-    }
+    const res = await fetch(`${API_URL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinInput })
+    });
+    const result = await res.json();
+    if (result.success) setUser(result.user);
+    else alert("PIN Incorrecto");
   };
 
+  // --- LÓGICA DE VOZ ---
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert("Navegador no compatible con voz.");
-    
     const rec = new SpeechRecognition();
     rec.lang = 'es-ES';
-    rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
+    rec.onstart = () => { setIsRecording(true); setStatus('Escuchando voz...'); };
     rec.onresult = async (e) => {
       const text = e.results[0][0].transcript;
-      setStatus(`Analizando...`);
+      setStatus(`Analizando con IA...`);
       const res = await fetch(`${API_URL}/api/process-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,57 +71,80 @@ function App() {
     rec.start();
   };
 
-  const saveToDB = async () => {
-    setStatus('Guardando...');
-    await fetch(`${API_URL}/api/save-intervention`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id })
-    });
-    setStatus('✅ Registrado');
-    setIaData(null);
-    fetchData();
-    setTimeout(() => setStatus(''), 2000);
+  // --- LÓGICA EXCEL ---
+  const exportToExcel = (data, fileName) => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Datos");
+    XLSX.writeFile(wb, `${fileName}.xlsx`);
   };
 
-  // VISTA DE LOGIN
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      setStatus('Importando...');
+      await fetch(`${API_URL}/api/import-inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: data, empresa_id: user.empresa_id })
+      });
+      fetchData();
+      setStatus('✅ Importado');
+      setTimeout(() => setStatus(''), 2000);
+    };
+    reader.readAsBinaryString(file);
+  };
+
   if (!user) return (
     <div className="container login-screen">
       <h1>MantIA</h1>
-      <div className="login-card animate-in">
+      <div className="login-card">
         <form onSubmit={handleLogin}>
-          <input 
-            type="password" 
-            value={pinInput} 
-            onChange={(e)=>setPinInput(e.target.value)} 
-            className="pin-input" 
-            placeholder="••••" 
-            autoFocus 
-          />
-          <button type="submit" className="confirm-button">ENTRAR AL SISTEMA</button>
+          <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
+          <button type="submit" className="confirm-button">ENTRAR</button>
         </form>
       </div>
     </div>
   );
 
-  // VISTA PRINCIPAL
   return (
-    <div className="container" style={{maxWidth: view === 'gerencia' ? '1000px' : '450px'}}>
+    <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
       <nav className="nav-tabs">
         <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
-        {user.rol === 'gerente' && <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>}
+        <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
       </nav>
 
       {view === 'operario' ? (
         <main className="main-content animate-in">
-          <button className={`record-button ${isRecording ? 'recording' : ''}`} onClick={startListening}>🎤</button>
-          {status && <p className="status-msg">{status}</p>}
+          <div className="voice-section">
+            <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}>
+              <div className="mic-icon">🎤</div>
+              <div className="pulse-ring"></div>
+            </button>
+            <p className="voice-label">{isRecording ? 'TE ESCUCHO...' : 'PULSA PARA REPORTAR'}</p>
+            {status && <div className="status-bubble">{status}</div>}
+          </div>
+
           {iaData && (
-            <div className="ia-card">
-              <h3>Detección IA</h3>
-              <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
-              <p><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
-              <button className="confirm-button" onClick={saveToDB}>Confirmar Registro</button>
+            <div className="ia-card animate-in">
+              <h3>Detección Inteligente</h3>
+              <div className="ia-data-row"><strong>Máquina:</strong> {iaData.maquina_nombre}</div>
+              <div className="ia-data-row"><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</div>
+              <button className="confirm-button" onClick={async () => {
+                setStatus('Guardando...');
+                await fetch(`${API_URL}/api/save-intervention`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id })
+                });
+                setIaData(null);
+                setStatus('✅ Registrado');
+                setTimeout(() => setStatus(''), 2000);
+              }}>CONFIRMAR Y GUARDAR</button>
             </div>
           )}
         </main>
@@ -144,12 +161,12 @@ function App() {
             <div className="stats-section animate-in">
               <div className="stats-grid">
                 <div className="stat-card">
-                  <h4>Averías por Máquina</h4>
+                  <h4>Frecuencia de Averías</h4>
                   <div style={{height: '250px'}}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} layout="vertical">
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px'}} />
+                        <YAxis dataKey="name" type="category" width={100} style={{fontSize: '12px'}} />
                         <Tooltip cursor={{fill: 'transparent'}} />
                         <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
                           {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -158,11 +175,12 @@ function App() {
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="stat-card summary">
-                  <div className="big-number">{history.length}</div>
-                  <p>Intervenciones</p>
-                  <div className="big-number" style={{color: '#ef4444'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
-                  <p>Alertas Stock</p>
+                <div className="stat-card summary-box">
+                  <span className="big-num">{history.length}</span>
+                  <span>Intervenciones</span>
+                  <hr />
+                  <span className="big-num danger">{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</span>
+                  <span>Stock Crítico</span>
                 </div>
               </div>
             </div>
@@ -172,9 +190,15 @@ function App() {
             <div className="maquinas-section animate-in">
               <div className="machine-grid">
                 {maquinas.map(m => (
-                  <div key={m.id} className="machine-item">
-                    <span>{m.nombre}</span>
-                    <button onClick={() => setShowQR(m.nombre)} className="qr-btn">🖼️ Generar QR</button>
+                  <div key={m.id} className="machine-card">
+                    <div className="machine-info">
+                      <span className="machine-name">{m.nombre}</span>
+                      <span className="machine-loc">{m.ubicacion || 'Planta General'}</span>
+                    </div>
+                    <button onClick={() => setShowQR(m.nombre)} className="qr-action-btn">
+                      <span>Generar QR</span>
+                      <div className="qr-mini-icon">🔳</div>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -182,16 +206,19 @@ function App() {
           )}
 
           {subView === 'historial' && (
-            <div className="historial-section animate-in">
+            <div className="section-container animate-in">
+              <div className="action-bar">
+                <button className="excel-btn" onClick={() => exportToExcel(history, "Historial_MantIA")}>📥 Descargar Historial (Excel)</button>
+              </div>
               <table className="history-table">
                 <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th><th>Acción</th></tr></thead>
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>
                       <td>{new Date(h.fecha).toLocaleDateString()}</td>
-                      <td>{h.maquina}</td>
-                      <td>{h.repuestos?.join(', ')}</td>
-                      <td><button onClick={async ()=>{await fetch(`${API_URL}/api/delete-intervention/${h.id}`, {method:'DELETE'}); fetchData();}} className="action-btn">🗑️</button></td>
+                      <td style={{fontWeight:'600'}}>{h.maquina}</td>
+                      <td style={{fontSize:'0.85rem'}}>{h.repuestos?.join(', ')}</td>
+                      <td><button className="delete-btn" onClick={async ()=>{await fetch(`${API_URL}/api/delete-intervention/${h.id}`, {method:'DELETE'}); fetchData();}}>🗑️</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -200,23 +227,32 @@ function App() {
           )}
 
           {subView === 'inventario' && (
-            <div className="inventario-section animate-in">
+            <div className="section-container animate-in">
+              <div className="action-bar">
+                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario_MantIA")}>📥 Exportar Inventario</button>
+                <label className="excel-btn import">
+                  📤 Importar Excel
+                  <input type="file" onChange={handleImport} hidden />
+                </label>
+              </div>
               <table className="history-table">
                 <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th><th>Acción</th></tr></thead>
                 <tbody>
                   {stock.map(s => (
                     <tr key={s.id}>
-                      <td>{s.nombre}</td>
-                      <td style={{fontWeight: 'bold'}}>{s.stock_actual}</td>
+                      <td style={{fontWeight:'600'}}>{s.nombre}</td>
+                      <td style={{textAlign:'center', fontWeight:'800'}}>{s.stock_actual}</td>
                       <td>
-                        <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warning' : 'status-ok'}`}>
-                          {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ CORRECTO'}
+                        <span className={`pill ${s.stock_actual <= s.stock_minimo ? 'warn' : 'ok'}`}>
+                          {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
                         </span>
                       </td>
-                      <td><button onClick={()=> {
-                        const n = prompt("Nuevo stock:", s.stock_actual);
-                        if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
-                      }} className="action-btn">✏️</button></td>
+                      <td style={{textAlign:'center'}}>
+                        <button className="edit-btn" onClick={() => {
+                          const n = prompt("Nuevo stock:", s.stock_actual);
+                          if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
+                        }}>✏️</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -229,11 +265,13 @@ function App() {
 
       {showQR && (
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
-          <div className="modal-content">
-            <h3>QR: {showQR}</h3>
-            <QRCodeCanvas value={`ID:${showQR}`} size={180} />
-            <p>Pega este código en el chasis de la máquina.</p>
-            <button onClick={()=>setShowQR(null)} className="confirm-button">Cerrar</button>
+          <div className="modal-content animate-pop">
+            <h3>Identificador QR</h3>
+            <div className="qr-wrapper">
+              <QRCodeCanvas value={`ID:${showQR}`} size={200} />
+            </div>
+            <p className="qr-name">{showQR}</p>
+            <button onClick={()=>setShowQR(null)} className="confirm-button">CERRAR</button>
           </div>
         </div>
       )}
