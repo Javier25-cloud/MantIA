@@ -203,4 +203,33 @@ function App() {
   );
 }
 
+// ... (mantenemos las importaciones y lógica igual)
+
+  // Dentro del return del Inventario, cambia la celda del estado por esto:
+  <td className={s.stock_actual <= s.stock_minimo ? 'row-critical' : ''}>
+    <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warning' : 'status-ok'}`}>
+      {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ CORRECTO'}
+    </span>
+  </td>
+
+// ... y el Login para envolverlo en una card:
+if (!user) return (
+  <div className="container login-screen">
+    <h1>MantIA</h1>
+    <div className="login-card animate-in">
+      <form onSubmit={handleLogin}>
+        <input 
+          type="password" 
+          value={pinInput} 
+          onChange={(e)=>setPinInput(e.target.value)} 
+          className="pin-input" 
+          placeholder="••••" 
+          autoFocus 
+        />
+        <button type="submit" className="confirm-button">ENTRAR AL SISTEMA</button>
+      </form>
+    </div>
+  </div>
+);
+
 export default App;
