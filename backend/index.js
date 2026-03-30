@@ -5,96 +5,83 @@ const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-
 app.use(cors({ origin: 'https://mant-ia.vercel.app' }));
 app.use(express.json());
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// --- SISTEMA ---
-app.get('/', (req, res) => res.send('MantIA Backend Pro v3: Operativo 🚀'));
+// --- RUTAS BÁSICAS ---
+app.get('/', (req, res) => res.send('MantIA Backend v4: Dashboard & QR Edition 🚀'));
 
 app.post('/api/login', (req, res) => {
   const { pinInput } = req.body;
   if (pinInput === "1234") {
     res.json({ 
       success: true, 
-      user: { 
-        id: "cc01eafc-6bdc-44e9-bcf6-793e19a44bd3", 
-        nombre: "Javier Caballero", 
-        empresa_id: "bbbacdf4-bbc2-494f-9a51-d732cf1cbcaa", 
-        rol: "gerente" 
-      } 
+      user: { id: "cc01eafc-6bdc-44e9-bcf6-793e19a44bd3", nombre: "Javier Caballero", empresa_id: "bbbacdf4-bbc2-494f-9a51-d732cf1cbcaa", rol: "gerente" } 
     });
-  } else {
-    res.status(401).json({ success: false, message: "PIN Incorrecto" });
-  }
+  } else { res.status(401).json({ success: false }); }
 });
 
-// --- IA ---
+// --- RUTA ESTADÍSTICAS (NUEVA) ---
+app.get('/api/stats', async (req, res) => {
+  const { empresa_id } = req.query;
+  try {
+    const { data: intervenciones } = await supabase.from('intervenciones').select('maquina').eq('empresa_id', empresa_id);
+    
+    // Contamos intervenciones por máquina para la gráfica
+    const counts = {};
+    intervenciones.forEach(i => counts[i.maquina] = (counts[i.maquina] || 0) + 1);
+    const chartData = Object.keys(counts).map(name => ({ name, value: counts[name] }));
+
+    res.json({ chartData });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- RESTO DE RUTAS (Mantener igual que antes) ---
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}. Repuestos: Filtro de Aire Industrial, Aceite Lubricante Multigrado, Correa de Distribución V-Belt, Junta de Estanqueidad 50mm, Válvula Solenoide 24V, Rodamiento de Bolas de Alta Precisión.`;
+    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}.`;
     const result = await model.generateContent(prompt);
     const jsonText = result.response.text().replace(/```json|```/g, "").trim();
     res.json({ success: true, data: JSON.parse(jsonText) });
-  } catch (error) { res.status(500).json({ error: "Error en IA" }); }
+  } catch (error) { res.status(500).json({ error: "IA Error" }); }
 });
 
-// --- INTERVENCIONES ---
 app.post('/api/save-intervention', async (req, res) => {
   const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
   try {
-    const { error } = await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
-    if (error) throw error;
+    await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/api/gerencia-data', async (req, res) => {
+  const { empresa_id } = req.query;
+  const { data: history } = await supabase.from('intervenciones').select('*').eq('empresa_id', empresa_id).order('fecha', { ascending: false });
+  const { data: stock } = await supabase.from('repuestos').select('*').eq('empresa_id', empresa_id).order('nombre', { ascending: true });
+  res.json({ history, stock });
 });
 
 app.delete('/api/delete-intervention/:id', async (req, res) => {
-  try {
-    const { error } = await supabase.from('intervenciones').delete().eq('id', req.params.id);
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// --- INVENTARIO Y GERENCIA ---
-app.get('/api/gerencia-data', async (req, res) => {
-  const { empresa_id } = req.query;
-  try {
-    const { data: history } = await supabase.from('intervenciones').select('*').eq('empresa_id', empresa_id).order('fecha', { ascending: false });
-    const { data: stock } = await supabase.from('repuestos').select('*').eq('empresa_id', empresa_id).order('nombre', { ascending: true });
-    res.json({ history: history || [], stock: stock || [] });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  await supabase.from('intervenciones').delete().eq('id', req.params.id);
+  res.json({ success: true });
 });
 
 app.put('/api/update-stock/:id', async (req, res) => {
-  try {
-    const { error } = await supabase.from('repuestos').update({ stock_actual: req.body.nuevoStock }).eq('id', req.params.id);
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  await supabase.from('repuestos').update({ stock_actual: req.body.nuevoStock }).eq('id', req.params.id);
+  res.json({ success: true });
 });
 
-// CARGA MASIVA DESDE EXCEL
 app.post('/api/import-inventory', async (req, res) => {
   const { items, empresa_id } = req.body;
-  try {
-    const dataToInsert = items.map(item => ({
-      nombre: item.Nombre,
-      stock_actual: parseInt(item.Stock_Actual) || 0,
-      stock_minimo: parseInt(item.Stock_Minimo) || 0,
-      empresa_id: empresa_id
-    }));
-    const { error } = await supabase.from('repuestos').upsert(dataToInsert, { onConflict: 'nombre, empresa_id' });
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  const data = items.map(i => ({ nombre: i.Nombre, stock_actual: i.Stock_Actual, stock_minimo: i.Stock_Minimo, empresa_id }));
+  await supabase.from('repuestos').upsert(data, { onConflict: 'nombre, empresa_id' });
+  res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
