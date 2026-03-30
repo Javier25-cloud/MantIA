@@ -30,7 +30,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setChartData(data.chartData || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Error al cargar datos:", err); }
   };
 
   useEffect(() => {
@@ -70,11 +70,37 @@ function App() {
     rec.start();
   };
 
+  // --- FUNCIONES EXCEL ---
   const exportToExcel = (data, name) => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Datos");
-    XLSX.writeFile(wb, `${name}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+    XLSX.writeFile(wb, `${name}_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      setStatus('Importando inventario...');
+      const res = await fetch(`${API_URL}/api/import-inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: data, empresa_id: user.empresa_id })
+      });
+      if (res.ok) {
+        fetchData();
+        setStatus('✅ Inventario actualizado');
+      } else {
+        setStatus('❌ Error al importar');
+      }
+      setTimeout(() => setStatus(''), 2000);
+    };
+    reader.readAsBinaryString(file);
   };
 
   if (!user) return (
@@ -90,7 +116,7 @@ function App() {
   );
 
   return (
-    <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
+    <div className="container" style={{maxWidth: view === 'gerencia' ? '1000px' : '450px'}}>
       <nav className="nav-tabs">
         <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
@@ -104,10 +130,10 @@ function App() {
               <div className="pulse-ring"></div>
             </button>
             <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
-            {status && <p>{status}</p>}
+            {status && <p className="status-msg">{status}</p>}
           </div>
           {iaData && (
-            <div className="ia-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1'}}>
+            <div className="ia-card">
               <h3>Detección IA</h3>
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
               <p><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
@@ -118,7 +144,7 @@ function App() {
                   body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id })
                 });
                 setIaData(null);
-                alert("Guardado");
+                alert("Guardado correctamente");
               }}>CONFIRMAR REGISTRO</button>
             </div>
           )}
@@ -133,52 +159,56 @@ function App() {
           </div>
 
           {subView === 'resumen' && (
-            <div className="stats-grid" style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
-              <div className="stat-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px'}}>
-                <h4 style={{margin:'0 0 20px 0'}}>Frecuencia de Averías</h4>
-                <div style={{height: '250px'}}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} layout="vertical">
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
-                      <Tooltip />
-                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
-                        {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+            <div className="stats-section animate-in">
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h4>Frecuencia de Averías</h4>
+                  <div style={{height: '250px'}}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} layout="vertical">
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
+                        <Tooltip />
+                        <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                          {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
-              <div className="stat-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'center'}}>
-                <div style={{fontSize:'3rem', fontWeight:'800', color:'#6366f1'}}>{history.length}</div>
-                <p>Intervenciones</p>
-                <div style={{fontSize:'3rem', fontWeight:'800', color:'#ef4444'}}>{stock.filter(s=>s.stock_actual<=s.stock_minimo).length}</div>
-                <p>Alertas Stock</p>
+                <div className="stat-card summary">
+                  <div className="big-number">{history.length}</div>
+                  <p>Intervenciones</p>
+                  <div className="big-number" style={{color: '#ef4444'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
+                  <p>Alertas Stock</p>
+                </div>
               </div>
             </div>
           )}
 
           {subView === 'maquinas' && (
-            <div className="machine-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'15px'}}>
+            <div className="machine-grid">
               {maquinas.map(m => (
-                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'15px', textAlign:'center'}}>
-                  <div style={{fontWeight:'800', marginBottom:'10px'}}>{m.nombre}</div>
-                  <button onClick={() => setShowQR(m.nombre)} style={{background:'#6366f1', color:'white', border:'none', padding:'8px', borderRadius:'8px', cursor:'pointer', width:'100%'}}>Generar QR</button>
+                <div key={m.id} className="machine-item">
+                  <span>{m.nombre}</span>
+                  <button onClick={() => setShowQR(m.nombre)} className="qr-btn">Generar QR</button>
                 </div>
               ))}
             </div>
           )}
 
           {subView === 'historial' && (
-            <div>
-              <button onClick={()=>exportToExcel(history, "Historial")} style={{marginBottom:'15px', background:'#10b981', color:'white', border:'none', padding:'10px', borderRadius:'8px', cursor:'pointer'}}>📥 Exportar Excel</button>
+            <div className="animate-in">
+              <div className="action-bar">
+                <button className="excel-btn" onClick={() => exportToExcel(history, "Historial_MantIA")}>📥 Exportar Historial</button>
+              </div>
               <table className="history-table">
-                <thead><tr><th>Fecha</th><th>Máquina</th><th>Repuestos</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th></tr></thead>
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>
                       <td>{new Date(h.fecha).toLocaleDateString()}</td>
-                      <td style={{fontWeight:'800'}}>{h.maquina}</td>
+                      <td style={{fontWeight: 'bold'}}>{h.maquina}</td>
                       <td>{h.repuestos?.join(', ')}</td>
                     </tr>
                   ))}
@@ -188,30 +218,44 @@ function App() {
           )}
 
           {subView === 'inventario' && (
-            <table className="history-table">
-              <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
-              <tbody>
-                {stock.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.nombre}</td>
-                    <td style={{fontWeight:'800'}}>{s.stock_actual}</td>
-                    <td>
-                      <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
-                        {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="animate-in">
+              <div className="action-bar">
+                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario_Actual")}>📥 Exportar Inventario</button>
+                <label className="excel-btn import">
+                  📤 Importar Excel
+                  <input type="file" onChange={handleImport} accept=".xlsx, .xls" hidden />
+                </label>
+              </div>
+              <table className="history-table">
+                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th><th>Acción</th></tr></thead>
+                <tbody>
+                  {stock.map(s => (
+                    <tr key={s.id}>
+                      <td>{s.nombre}</td>
+                      <td style={{fontWeight: 'bold'}}>{s.stock_actual}</td>
+                      <td>
+                        <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
+                          {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
+                        </span>
+                      </td>
+                      <td><button onClick={()=> {
+                        const n = prompt("Nuevo stock:", s.stock_actual);
+                        if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
+                      }} className="action-btn">✏️</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-          <button className="logout-btn" onClick={()=>setUser(null)} style={{marginTop:'30px', background:'transparent', color:'#94a3b8', border:'1px solid #334155', padding:'10px', borderRadius:'10px', cursor:'pointer', width:'100%'}}>Cerrar Sesión</button>
+          <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión</button>
+          {status && <div style={{marginTop:'10px', color:var('--primary'), fontWeight:'bold'}}>{status}</div>}
         </div>
       )}
 
       {showQR && (
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
-          <div className="modal-content" style={{background:'white', padding:'30px', borderRadius:'20px', textAlign:'center', color:'#1e293b'}}>
+          <div className="modal-content">
             <h3>QR: {showQR}</h3>
             <QRCodeCanvas value={`ID:${showQR}`} size={180} />
             <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'20px'}}>CERRAR</button>
