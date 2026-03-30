@@ -12,8 +12,8 @@ app.use(express.json());
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// --- RUTAS DE SISTEMA ---
-app.get('/', (req, res) => res.send('MantIA Backend Pro v2: Operativo 🚀'));
+// --- SISTEMA ---
+app.get('/', (req, res) => res.send('MantIA Backend Pro v3: Operativo 🚀'));
 
 app.post('/api/login', (req, res) => {
   const { pinInput } = req.body;
@@ -32,7 +32,7 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-// --- RUTA IA (GEMINI) ---
+// --- IA ---
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
@@ -44,7 +44,7 @@ app.post('/api/process-text', async (req, res) => {
   } catch (error) { res.status(500).json({ error: "Error en IA" }); }
 });
 
-// --- GESTIÓN DE INTERVENCIONES ---
+// --- INTERVENCIONES ---
 app.post('/api/save-intervention', async (req, res) => {
   const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
   try {
@@ -62,7 +62,7 @@ app.delete('/api/delete-intervention/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// --- GESTIÓN DE INVENTARIO ---
+// --- INVENTARIO Y GERENCIA ---
 app.get('/api/gerencia-data', async (req, res) => {
   const { empresa_id } = req.query;
   try {
@@ -75,6 +75,22 @@ app.get('/api/gerencia-data', async (req, res) => {
 app.put('/api/update-stock/:id', async (req, res) => {
   try {
     const { error } = await supabase.from('repuestos').update({ stock_actual: req.body.nuevoStock }).eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// CARGA MASIVA DESDE EXCEL
+app.post('/api/import-inventory', async (req, res) => {
+  const { items, empresa_id } = req.body;
+  try {
+    const dataToInsert = items.map(item => ({
+      nombre: item.Nombre,
+      stock_actual: parseInt(item.Stock_Actual) || 0,
+      stock_minimo: parseInt(item.Stock_Minimo) || 0,
+      empresa_id: empresa_id
+    }));
+    const { error } = await supabase.from('repuestos').upsert(dataToInsert, { onConflict: 'nombre, empresa_id' });
     if (error) throw error;
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }

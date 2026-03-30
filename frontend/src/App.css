@@ -3,84 +3,57 @@
   --dark: #0f172a;
   --bg-card: #1e293b;
   --text-main: #f8fafc;
-  --text-dark: #1e293b;
 }
 
 body {
-  margin: 0;
-  padding: 20px;
-  font-family: 'Segoe UI', sans-serif;
-  background-color: var(--dark);
-  color: var(--text-main);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
+  margin: 0; padding: 20px; background-color: var(--dark); color: var(--text-main);
+  font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
 }
 
 .container { width: 100%; margin: 0 auto; display: flex; flex-direction: column; }
 
+/* FIX PIN INPUT: Texto blanco brillante al escribir */
+.pin-input {
+  width: 100%; padding: 18px; border-radius: 12px; border: 3px solid #334155;
+  background: #1e293b; color: #ffffff !important; /* Blanco puro */
+  font-size: 2rem; font-weight: bold; text-align: center; margin-bottom: 20px; box-sizing: border-box;
+}
+
+.pin-input::placeholder { color: #64748b; font-size: 1.2rem; font-weight: normal; }
+
 .header { text-align: center; margin-bottom: 20px; }
-.header h1 { margin: 0; color: var(--primary); font-size: 2.2rem; }
+.header h1 { color: var(--primary); font-size: 2.5rem; margin: 0; }
 
 .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; background: var(--bg-card); padding: 6px; border-radius: 12px; }
-.nav-tabs button { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 8px; font-weight: 600; }
+.nav-tabs button { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 8px; font-weight: bold; }
 .nav-tabs button.active { background: var(--primary); color: white; }
 
-/* --- SECCIONES Y TABLAS --- */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.export-btn {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: transform 0.2s;
-}
-
-.export-btn:hover { background: #059669; transform: scale(1.05); }
-
-.history-table { 
-  width: 100%; 
-  border-collapse: collapse; 
-  background: white; 
-  border-radius: 12px; 
-  overflow: hidden;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-}
-
+/* TABLAS VISIBLES */
+.history-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 10px 15px rgba(0,0,0,0.3); }
 .history-table th { background: #f1f5f9; padding: 12px; text-align: left; font-size: 0.7rem; color: #64748b; text-transform: uppercase; }
-.history-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: var(--text-dark) !important; }
+.history-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; color: #1e293b !important; }
 
 .row-critical { background-color: #fff1f2 !important; }
-.row-critical td { color: #b91c1c !important; font-weight: 600; }
+.row-critical td { color: #b91c1c !important; font-weight: bold; }
 
-.action-btn { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; padding: 6px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; }
 
-/* --- LOGIN Y BOTONES --- */
-.pin-input {
-  width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #334155;
-  background: #1e293b; color: white; font-size: 1.5rem; text-align: center; margin-bottom: 15px; box-sizing: border-box;
+.export-btn, .import-btn { 
+  background: #0ea5e9; color: white; border: none; padding: 8px 15px; 
+  border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.75rem; 
 }
+.import-btn { background: #6366f1; display: inline-block; }
 
-.confirm-button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-
-.record-button { width: 100px; height: 100px; border-radius: 50%; border: 6px solid #334155; background: var(--bg-card); color: white; font-size: 1.8rem; cursor: pointer; margin: 30px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.record-button { 
+  width: 100px; height: 100px; border-radius: 50%; border: 6px solid #334155; 
+  background: var(--bg-card); color: white; font-size: 2rem; margin: 40px auto; display: block; cursor: pointer;
+}
 .record-button.recording { border-color: #ef4444; animation: pulse 1.5s infinite; }
-
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-.ia-card { background: var(--bg-card); padding: 20px; border-radius: 15px; border-left: 4px solid var(--primary); }
-.logout-btn { background: #334155; color: #94a3b8; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 20px; cursor: pointer; }
+.ia-card { background: var(--bg-card); padding: 20px; border-radius: 15px; border-left: 5px solid var(--primary); }
+.confirm-button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-.animate-in { animation: fadeIn 0.4s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.logout-btn { background: #334155; color: #94a3b8; border: none; padding: 12px; border-radius: 8px; width: 100%; margin-top: 20px; cursor: pointer; }
+
+.action-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; }
