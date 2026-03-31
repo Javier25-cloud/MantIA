@@ -30,7 +30,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setChartData(data.chartData || []);
-    } catch (err) { console.error("Error al cargar datos:", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => {
@@ -51,7 +51,6 @@ function App() {
 
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert("Navegador no compatible con voz.");
     const rec = new SpeechRecognition();
     rec.lang = 'es-ES';
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
@@ -101,19 +100,13 @@ function App() {
   // --- VISTA DE LOGIN ---
   if (!user) return (
     <div className="container login-screen">
-      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '150px', width: 'auto' }} />
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '140px', width: 'auto' }} />
+        <h2 className="brand-name">MantIA</h2>
       </div>
       <div className="login-card animate-in">
         <form onSubmit={handleLogin}>
-          <input 
-            type="password" 
-            value={pinInput} 
-            onChange={(e)=>setPinInput(e.target.value)} 
-            className="pin-input" 
-            placeholder="••••" 
-            autoFocus 
-          />
+          <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
           <button type="submit" className="confirm-button">ENTRAR</button>
         </form>
       </div>
@@ -123,8 +116,16 @@ function App() {
   // --- VISTA PRINCIPAL ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
+      
+      {/* BOTÓN VOLVER AL INICIO (ARRIBA DERECHA) */}
+      <button className="home-nav-btn" onClick={() => { setView('operario'); setSubView('resumen'); }}>
+        <img src="/logo.png" alt="Logo" />
+        <span>MantIA Inicio</span>
+      </button>
+
       <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '90px', width: 'auto' }} />
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px', width: 'auto' }} />
+        <h2 className="brand-name" style={{fontSize: '1.8rem'}}>MantIA</h2>
       </header>
 
       <nav className="nav-tabs">
@@ -138,7 +139,7 @@ function App() {
             <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}>
               <span style={{fontSize: '4rem'}}>🎤</span>
             </button>
-            <p className="voice-label">{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
+            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
             {status && <div className="status-pill status-ok" style={{marginTop:'15px', display:'inline-block'}}>{status}</div>}
           </div>
           {iaData && (
@@ -168,10 +169,10 @@ function App() {
           </div>
 
           {subView === 'resumen' && (
-            <div className="stats-section animate-in">
+            <div className="stats-section">
               <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
                 <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
-                  <h4>Frecuencia de Averías</h4>
+                  <h4>Averías por Máquina</h4>
                   <div style={{height: '250px'}}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} layout="vertical">
@@ -186,9 +187,9 @@ function App() {
                   </div>
                 </div>
                 <div className="stat-card summary" style={{textAlign: 'center', background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
-                  <div className="big-number" style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
+                  <div style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
                   <p>Intervenciones</p>
-                  <div className="big-number" style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
+                  <div style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
                   <p>Stock Crítico</p>
                 </div>
               </div>
@@ -196,20 +197,20 @@ function App() {
           )}
 
           {subView === 'maquinas' && (
-            <div className="machine-grid">
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:'20px'}}>
               {maquinas.map(m => (
-                <div key={m.id} className="machine-item">
-                  <span className="machine-name">{m.nombre}</span>
-                  <button onClick={() => setShowQR(m.nombre)} className="qr-btn">GENERAR QR</button>
+                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'center'}}>
+                  <span style={{fontWeight:'800', display:'block', marginBottom:'10px'}}>{m.nombre}</span>
+                  <button onClick={() => setShowQR(m.nombre)} style={{background:'#6366f1', color:'white', border:'none', padding:'8px 15px', borderRadius:'10px', cursor:'pointer'}}>QR</button>
                 </div>
               ))}
             </div>
           )}
 
           {subView === 'historial' && (
-            <div className="animate-in">
-              <button className="excel-btn" onClick={() => exportToExcel(history, "Historial_MantIA")} style={{marginBottom:'15px'}}>📥 Exportar Excel</button>
-              <table className="history-table">
+            <div>
+              <button className="excel-btn" onClick={() => exportToExcel(history, "Historial")}>📥 Exportar Excel</button>
+              <table className="history-table" style={{marginTop:'15px'}}>
                 <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th></tr></thead>
                 <tbody>
                   {history.map(h => (
@@ -225,10 +226,10 @@ function App() {
           )}
 
           {subView === 'inventario' && (
-            <div className="animate-in">
+            <div>
               <div className="action-bar" style={{marginBottom:'15px', display:'flex', gap:'10px'}}>
-                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario_Actual")}>📥 Exportar Stock</button>
-                <label className="excel-btn import" style={{cursor: 'pointer'}}>📤 Importar Excel
+                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar</button>
+                <label className="excel-btn import" style={{cursor: 'pointer'}}>📤 Importar
                   <input type="file" onChange={handleImport} accept=".xlsx, .xls" hidden />
                 </label>
               </div>
