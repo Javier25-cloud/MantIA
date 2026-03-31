@@ -30,7 +30,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setChartData(data.chartData || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Error al cargar datos:", err); }
   };
 
   useEffect(() => {
@@ -50,7 +50,8 @@ function App() {
   };
 
   const startListening = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return alert("Navegador no compatible con voz.");
     const rec = new SpeechRecognition();
     rec.lang = 'es-ES';
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
@@ -97,54 +98,51 @@ function App() {
     reader.readAsBinaryString(file);
   };
 
+  // --- VISTA DE LOGIN ---
   if (!user) return (
     <div className="container login-screen">
-      <img src="/logo.png" alt="MantIA Logo" style={{ height: '150px', marginBottom: '30px' }} />
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '150px', width: 'auto' }} />
+      </div>
       <div className="login-card animate-in">
         <form onSubmit={handleLogin}>
-          <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
+          <input 
+            type="password" 
+            value={pinInput} 
+            onChange={(e)=>setPinInput(e.target.value)} 
+            className="pin-input" 
+            placeholder="••••" 
+            autoFocus 
+          />
           <button type="submit" className="confirm-button">ENTRAR</button>
         </form>
       </div>
     </div>
   );
 
+  // --- VISTA PRINCIPAL ---
   return (
-    // --- VISTA PRINCIPAL (HEADER CON LOGO MÁS GRANDE) ---
-return (
-  <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
-    
-    {/* Header con el logo centrado y más grande */}
-    <header style={{ textAlign: 'center', marginBottom: '30px', padding: '10px 0' }}>
-      <img 
-        src="/logo.png" 
-        alt="MantIA Logo" 
-        style={{ 
-          height: '90px', // <-- Aumenta este número para hacerlo más grande en la cabecera
-          width: 'auto', 
-          display: 'block', 
-          margin: '0 auto' 
-        }} 
-      />
-    </header>
-    
-    {/* Navegación por pestañas */}
-    <nav className="nav-tabs">
-      <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
-      {user.rol === 'gerente' && <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>}
-    </nav>
+    <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
+      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '90px', width: 'auto' }} />
+      </header>
+
+      <nav className="nav-tabs">
+        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
+        <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
+      </nav>
 
       {view === 'operario' ? (
         <main className="main-content animate-in">
           <div className="voice-section">
             <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}>
-              <span style={{fontSize:'4rem'}}>🎤</span>
+              <span style={{fontSize: '4rem'}}>🎤</span>
             </button>
             <p className="voice-label">{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
             {status && <div className="status-pill status-ok" style={{marginTop:'15px', display:'inline-block'}}>{status}</div>}
           </div>
           {iaData && (
-            <div className="ia-card">
+            <div className="ia-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', marginTop:'20px'}}>
               <h3>Detección IA</h3>
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
               <p><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
@@ -155,8 +153,8 @@ return (
                   body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id })
                 });
                 setIaData(null);
-                alert("Guardado");
-              }}>CONFIRMAR</button>
+                alert("Guardado correctamente");
+              }}>CONFIRMAR REGISTRO</button>
             </div>
           )}
         </main>
@@ -170,27 +168,29 @@ return (
           </div>
 
           {subView === 'resumen' && (
-            <div className="stats-grid">
-              <div className="stat-card">
-                <h4>Frecuencia de Averías</h4>
-                <div style={{height: '250px'}}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} layout="vertical">
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
-                      <Tooltip cursor={{fill:'transparent'}} />
-                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
-                        {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+            <div className="stats-section animate-in">
+              <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
+                <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
+                  <h4>Frecuencia de Averías</h4>
+                  <div style={{height: '250px'}}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} layout="vertical">
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
+                        <Tooltip cursor={{fill: 'transparent'}} />
+                        <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                          {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
-              <div className="stat-card summary">
-                <span className="big-number">{history.length}</span>
-                <p>Intervenciones</p>
-                <span className="big-number" style={{color:'#ef4444'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</span>
-                <p>Stock Crítico</p>
+                <div className="stat-card summary" style={{textAlign: 'center', background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
+                  <div className="big-number" style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
+                  <p>Intervenciones</p>
+                  <div className="big-number" style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
+                  <p>Stock Crítico</p>
+                </div>
               </div>
             </div>
           )}
@@ -207,15 +207,15 @@ return (
           )}
 
           {subView === 'historial' && (
-            <div className="section-container">
-              <button className="excel-btn" onClick={()=>exportToExcel(history, "Historial")}>📥 Exportar Excel</button>
-              <table className="history-table" style={{marginTop:'15px'}}>
+            <div className="animate-in">
+              <button className="excel-btn" onClick={() => exportToExcel(history, "Historial_MantIA")} style={{marginBottom:'15px'}}>📥 Exportar Excel</button>
+              <table className="history-table">
                 <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th></tr></thead>
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>
                       <td>{new Date(h.fecha).toLocaleDateString()}</td>
-                      <td>{h.maquina}</td>
+                      <td style={{fontWeight: 'bold'}}>{h.maquina}</td>
                       <td>{h.repuestos?.join(', ')}</td>
                     </tr>
                   ))}
@@ -225,10 +225,10 @@ return (
           )}
 
           {subView === 'inventario' && (
-            <div className="section-container">
-              <div className="action-bar">
-                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar</button>
-                <label className="excel-btn import">📤 Importar
+            <div className="animate-in">
+              <div className="action-bar" style={{marginBottom:'15px', display:'flex', gap:'10px'}}>
+                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario_Actual")}>📥 Exportar Stock</button>
+                <label className="excel-btn import" style={{cursor: 'pointer'}}>📤 Importar Excel
                   <input type="file" onChange={handleImport} accept=".xlsx, .xls" hidden />
                 </label>
               </div>
@@ -238,16 +238,16 @@ return (
                   {stock.map(s => (
                     <tr key={s.id}>
                       <td>{s.nombre}</td>
-                      <td style={{fontWeight:'800'}}>{s.stock_actual}</td>
+                      <td style={{fontWeight: 'bold'}}>{s.stock_actual}</td>
                       <td>
                         <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
                           {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
                         </span>
                       </td>
-                      <td><button className="action-btn" onClick={()=>{
-                        const n=prompt("Nuevo stock:", s.stock_actual);
+                      <td><button onClick={()=> {
+                        const n = prompt("Nuevo stock:", s.stock_actual);
                         if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
-                      }}>✏️</button></td>
+                      }} className="action-btn">✏️</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -260,9 +260,10 @@ return (
 
       {showQR && (
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
-          <div className="modal-content">
-            <h3>QR: {showQR}</h3>
+          <div className="modal-content" style={{background:'white', padding:'30px', borderRadius:'20px', textAlign:'center', color:'#1e293b'}}>
+            <h3>Identificador QR</h3>
             <QRCodeCanvas value={`ID:${showQR}`} size={180} />
+            <p style={{marginTop:'15px', fontWeight:'800'}}>{showQR}</p>
             <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'20px'}}>CERRAR</button>
           </div>
         </div>
