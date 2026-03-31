@@ -6,7 +6,7 @@
   --primary: #6366f1;
   --bg-dark: #0f172a;
   --card-bg: #1e293b;
-  --text-main: #f8fafc; /* Color claro para el texto */
+  --text-main: #f8fafc;
   --text-dim: #94a3b8;
   --danger: #ef4444;
   --success: #10b981;
@@ -19,22 +19,31 @@ body {
   min-height: 100vh;
 }
 
-.container { width: 100%; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; position: relative; }
+.container { 
+  width: 100%; 
+  max-width: 1100px; 
+  margin: 0 auto;
+  padding: 60px 20px; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  text-align: center;
+  position: relative; 
+}
 
 /* --- TEXTO DEBAJO DEL LOGO --- */
 .brand-name {
   color: var(--text-main);
-  font-size: 2.5rem;
   font-weight: 800;
   margin-top: 10px;
   letter-spacing: -1px;
 }
 
-/* --- BOTÓN VOLVER AL INICIO (Top Right) --- */
+/* --- BOTÓN VOLVER AL INICIO (ESQUINA IZQUIERDA) --- */
 .home-nav-btn {
   position: absolute;
   top: 20px;
-  right: 20px;
+  left: 20px; /* Movido a la izquierda como pediste */
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 8px 15px;
@@ -44,37 +53,70 @@ body {
   gap: 10px;
   cursor: pointer;
   transition: all 0.2s;
-  text-decoration: none;
 }
 
-.home-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary);
+.home-nav-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--primary); }
+.home-nav-btn img { height: 20px; width: auto; }
+.home-nav-btn span { color: var(--text-main); font-weight: 700; font-size: 0.8rem; }
+
+/* --- NAVEGACIÓN GERENCIA (BOTONES MODERNOS) --- */
+.sub-nav { 
+  display: flex; 
+  gap: 10px; 
+  margin-bottom: 25px; 
+  width: 100%; 
+  justify-content: center;
 }
 
-.home-nav-btn img { height: 25px; width: auto; }
-.home-nav-btn span { color: var(--text-main); font-weight: 700; font-size: 0.9rem; }
+.sub-nav button {
+  padding: 10px 18px;
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: 0.2s;
+}
 
-/* --- RESTO DE ESTILOS (Mantenidos) --- */
-.login-screen { justify-content: center; height: 85vh; }
-.login-card { background: var(--card-bg); padding: 40px; border-radius: 28px; width: 100%; max-width: 380px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-.pin-input { width: 100%; padding: 18px; border-radius: 14px; background: #0f172a; border: 2px solid #334155; color: white; font-size: 1.8rem; text-align: center; margin-bottom: 25px; }
+.sub-nav button.s-active {
+  background: white;
+  color: var(--bg-dark);
+  border-color: white;
+  box-shadow: 0 4px 12px rgba(255,255,255,0.2);
+}
 
-.nav-tabs { display: flex; background: var(--card-bg); padding: 6px; border-radius: 18px; margin-bottom: 30px; }
-.nav-tabs button { padding: 12px 30px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-weight: 700; border-radius: 14px; }
-.nav-tabs button.active { background: var(--primary); color: white; }
+/* --- EXCEL BUTTONS --- */
+.excel-btn {
+  background: var(--success);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-bottom: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 
-.record-btn-giant { width: 160px; height: 160px; border-radius: 50%; border: none; background: linear-gradient(135deg, #6366f1, #a855f7); cursor: pointer; box-shadow: 0 20px 40px rgba(99,102,241,0.4); display: flex; align-items: center; justify-content: center; }
-.is-recording { animation: pulse-animation 1.5s infinite; }
-@keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.7); } 70% { box-shadow: 0 0 0 30px rgba(99,102,241,0); } 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); } }
+.excel-btn.import { background: var(--primary); }
 
-.history-table { width: 100%; background: white; border-radius: 24px; overflow: hidden; border-collapse: collapse; }
-.history-table th { background: #f8fafc; padding: 18px; color: #64748b; font-size: 0.75rem; text-transform: uppercase; text-align: left; }
-.history-table td { padding: 16px 20px; color: #1e293b; border-bottom: 1px solid #f1f5f9; }
+/* --- TABLAS --- */
+.history-table { width: 100%; background: white; border-radius: 20px; overflow: hidden; border-collapse: collapse; margin-top: 10px; }
+.history-table th { background: #f1f5f9; padding: 15px; color: #64748b; font-size: 0.75rem; text-transform: uppercase; text-align: left; }
+.history-table td { padding: 15px; color: #1e293b !important; border-bottom: 1px solid #f1f5f9; text-align: left; }
 
-.status-pill { padding: 6px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 800; }
-.status-ok { background: #dcfce7; color: #166534; }
-.status-warn { background: #fee2e2; color: #991b1b; }
+/* --- LOGIN --- */
+.login-card { background: var(--card-bg); padding: 40px; border-radius: 28px; width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,0.1); }
+.pin-input { width: 100%; padding: 15px; border-radius: 12px; background: #0f172a; border: 2px solid #334155; color: white; font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
 
-.confirm-button { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 16px; font-weight: 800; cursor: pointer; }
-.logout-btn { margin-top: 40px; background: var(--danger); color: white; border: none; padding: 15px; border-radius: 16px; font-weight: 800; cursor: pointer; width: 100%; }
+/* --- BOTÓN VOZ --- */
+.voice-section { padding: 40px 0; }
+.record-btn-giant { width: 160px; height: 160px; border-radius: 50%; border: none; background: linear-gradient(135deg, #6366f1, #a855f7); cursor: pointer; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center; }
+
+.confirm-button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; }
+.logout-btn { margin-top: 30px; background: var(--danger); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 800; cursor: pointer; width: 100%; }

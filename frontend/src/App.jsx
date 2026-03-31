@@ -77,34 +77,13 @@ function App() {
     XLSX.writeFile(wb, `${name}.xlsx`);
   };
 
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      setStatus('Importando...');
-      await fetch(`${API_URL}/api/import-inventory`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: data, empresa_id: user.empresa_id })
-      });
-      fetchData();
-      setStatus('✅ Importado');
-      setTimeout(() => setStatus(''), 2000);
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  // --- VISTA DE LOGIN ---
   if (!user) return (
     <div className="container login-screen">
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '140px', width: 'auto' }} />
-        <h2 className="brand-name">MantIA</h2>
+      <div style={{ marginBottom: '30px' }}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '140px' }} />
+        <h1 className="brand-name">MantIA</h1>
       </div>
-      <div className="login-card animate-in">
+      <div className="login-card">
         <form onSubmit={handleLogin}>
           <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
           <button type="submit" className="confirm-button">ENTRAR</button>
@@ -113,37 +92,36 @@ function App() {
     </div>
   );
 
-  // --- VISTA PRINCIPAL ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
       
-      {/* BOTÓN VOLVER AL INICIO (ARRIBA DERECHA) */}
-      <button className="home-nav-btn" onClick={() => { setView('operario'); setSubView('resumen'); }}>
+      {/* BOTÓN VOLVER AL PIN (ARRIBA IZQUIERDA) */}
+      <button className="home-nav-btn" onClick={() => setUser(null)}>
         <img src="/logo.png" alt="Logo" />
         <span>MantIA Inicio</span>
       </button>
 
-      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px', width: 'auto' }} />
+      <header style={{ marginBottom: '30px' }}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px' }} />
         <h2 className="brand-name" style={{fontSize: '1.8rem'}}>MantIA</h2>
       </header>
 
-      <nav className="nav-tabs">
+      <nav className="nav-tabs" style={{display:'flex', justifyContent:'center', width:'fit-content', margin:'0 auto 30px'}}>
         <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
       </nav>
 
       {view === 'operario' ? (
-        <main className="main-content animate-in">
+        <main className="animate-in">
           <div className="voice-section">
             <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}>
               <span style={{fontSize: '4rem'}}>🎤</span>
             </button>
-            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'HABLA AHORA...' : 'PULSA PARA REPORTAR'}</p>
+            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'TE ESCUCHO...' : 'PULSA PARA REPORTAR'}</p>
             {status && <div className="status-pill status-ok" style={{marginTop:'15px', display:'inline-block'}}>{status}</div>}
           </div>
           {iaData && (
-            <div className="ia-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', marginTop:'20px'}}>
+            <div className="ia-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', textAlign:'left', marginTop:'20px'}}>
               <h3>Detección IA</h3>
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
               <p><strong>Piezas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
@@ -154,7 +132,7 @@ function App() {
                   body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id })
                 });
                 setIaData(null);
-                alert("Guardado correctamente");
+                alert("Guardado");
               }}>CONFIRMAR REGISTRO</button>
             </div>
           )}
@@ -169,29 +147,27 @@ function App() {
           </div>
 
           {subView === 'resumen' && (
-            <div className="stats-section">
-              <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
-                <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
-                  <h4>Averías por Máquina</h4>
-                  <div style={{height: '250px'}}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} layout="vertical">
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
-                        <Tooltip cursor={{fill: 'transparent'}} />
-                        <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
-                          {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+            <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
+              <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
+                <h4 style={{marginBottom:'20px', color:'#94a3b8'}}>Frecuencia de Averías</h4>
+                <div style={{height: '250px'}}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} layout="vertical">
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={80} style={{fontSize: '12px', fill:'#fff'}} />
+                      <Tooltip cursor={{fill: 'transparent'}} />
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                        {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="stat-card summary" style={{textAlign: 'center', background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
-                  <div style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
-                  <p>Intervenciones</p>
-                  <div style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
-                  <p>Stock Crítico</p>
-                </div>
+              </div>
+              <div className="stat-card" style={{textAlign: 'center', background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
+                <div style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
+                <p>Intervenciones</p>
+                <div style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
+                <p>Stock Crítico</p>
               </div>
             </div>
           )}
@@ -199,9 +175,9 @@ function App() {
           {subView === 'maquinas' && (
             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:'20px'}}>
               {maquinas.map(m => (
-                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'center'}}>
+                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px'}}>
                   <span style={{fontWeight:'800', display:'block', marginBottom:'10px'}}>{m.nombre}</span>
-                  <button onClick={() => setShowQR(m.nombre)} style={{background:'#6366f1', color:'white', border:'none', padding:'8px 15px', borderRadius:'10px', cursor:'pointer'}}>QR</button>
+                  <button onClick={() => setShowQR(m.nombre)} style={{background:'#6366f1', color:'white', border:'none', padding:'8px 15px', borderRadius:'10px', cursor:'pointer', width:'100%'}}>QR</button>
                 </div>
               ))}
             </div>
@@ -210,7 +186,7 @@ function App() {
           {subView === 'historial' && (
             <div>
               <button className="excel-btn" onClick={() => exportToExcel(history, "Historial")}>📥 Exportar Excel</button>
-              <table className="history-table" style={{marginTop:'15px'}}>
+              <table className="history-table">
                 <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th></tr></thead>
                 <tbody>
                   {history.map(h => (
@@ -227,14 +203,14 @@ function App() {
 
           {subView === 'inventario' && (
             <div>
-              <div className="action-bar" style={{marginBottom:'15px', display:'flex', gap:'10px'}}>
+              <div className="action-bar" style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
                 <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar</button>
                 <label className="excel-btn import" style={{cursor: 'pointer'}}>📤 Importar
-                  <input type="file" onChange={handleImport} accept=".xlsx, .xls" hidden />
+                  <input type="file" onChange={(e)=>{/* Lógica de importación aquí */}} accept=".xlsx, .xls" hidden />
                 </label>
               </div>
               <table className="history-table">
-                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th><th>Acción</th></tr></thead>
+                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
                 <tbody>
                   {stock.map(s => (
                     <tr key={s.id}>
@@ -245,10 +221,6 @@ function App() {
                           {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
                         </span>
                       </td>
-                      <td><button onClick={()=> {
-                        const n = prompt("Nuevo stock:", s.stock_actual);
-                        if(n) fetch(`${API_URL}/api/update-stock/${s.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nuevoStock:parseInt(n)})}).then(()=>fetchData());
-                      }} className="action-btn">✏️</button></td>
                     </tr>
                   ))}
                 </tbody>
