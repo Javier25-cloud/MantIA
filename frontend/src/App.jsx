@@ -99,7 +99,7 @@ function App() {
 
   if (!user) return (
     <div className="container login-screen">
-      <img src="/logo.png" alt="MantIA Logo" style={{ height: '100px', marginBottom: '30px' }} />
+      <img src="/logo.png" alt="MantIA Logo" style={{ height: '150px', marginBottom: '30px' }} />
       <div className="login-card animate-in">
         <form onSubmit={handleLogin}>
           <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
@@ -110,15 +110,29 @@ function App() {
   );
 
   return (
-    <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
-      <header style={{textAlign:'center', marginBottom:'20px'}}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '60px' }} />
-      </header>
-      
-      <nav className="nav-tabs">
-        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
-        <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
-      </nav>
+    // --- VISTA PRINCIPAL (HEADER CON LOGO MÁS GRANDE) ---
+return (
+  <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
+    
+    {/* Header con el logo centrado y más grande */}
+    <header style={{ textAlign: 'center', marginBottom: '30px', padding: '10px 0' }}>
+      <img 
+        src="/logo.png" 
+        alt="MantIA Logo" 
+        style={{ 
+          height: '90px', // <-- Aumenta este número para hacerlo más grande en la cabecera
+          width: 'auto', 
+          display: 'block', 
+          margin: '0 auto' 
+        }} 
+      />
+    </header>
+    
+    {/* Navegación por pestañas */}
+    <nav className="nav-tabs">
+      <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
+      {user.rol === 'gerente' && <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>}
+    </nav>
 
       {view === 'operario' ? (
         <main className="main-content animate-in">
