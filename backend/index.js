@@ -19,7 +19,7 @@ app.post('/api/login', (req, res) => {
   } else { res.status(401).json({ success: false }); }
 });
 
-// 2. DATOS GERENCIA + MOTOR AUTO-PLANIFICADOR (V10)
+// 2. MOTOR DE AUTOGENERACIÓN (V10)
 app.get('/api/gerencia-data', async (req, res) => {
   const { empresa_id } = req.query;
   try {
@@ -31,8 +31,8 @@ app.get('/api/gerencia-data', async (req, res) => {
       supabase.from('planes_mantenimiento').select('*').eq('empresa_id', empresa_id)
     ]);
 
-    // Lógica que autogenera tareas leyendo todos los planes
     const hoy = new Date();
+    // Revisar cada plan para ver si hay que crear una tarea
     for (let plan of (allPlans.data || [])) {
       const ultima = new Date(plan.ultima_fecha);
       const diasPasados = Math.floor((hoy - ultima) / (1000 * 60 * 60 * 24));
@@ -50,8 +50,6 @@ app.get('/api/gerencia-data', async (req, res) => {
     }
 
     const finalTasks = await supabase.from('tareas').select('*').eq('empresa_id', empresa_id).order('fecha_limite', { ascending: true });
-    
-    // Datos para la gráfica
     const counts = {};
     history.data?.forEach(i => counts[i.maquina] = (counts[i.maquina] || 0) + 1);
     const chartData = Object.keys(counts).map(name => ({ name, valor: counts[name] }));
@@ -60,44 +58,40 @@ app.get('/api/gerencia-data', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 3. AÑADIR NUEVO PLAN A MÁQUINA (Con escudo de errores)
+// 3. GESTIÓN DE PLANES
 app.post('/api/add-plan', async (req, res) => {
   const { error } = await supabase.from('planes_mantenimiento').insert([req.body]);
-  if (error) {
-    return res.status(400).json({ success: false, error: error.message });
-  }
+  if (error) return res.status(400).json({ success: false, error: error.message });
   res.json({ success: true });
 });
 
-// 4. COMPLETAR TAREA PREVENTIVA Y RESETEAR EL CICLO
+// 4. COMPLETAR TAREA
 app.put('/api/complete-task/:id', async (req, res) => {
   const { maquina_nombre } = req.body;
   await supabase.from('tareas').update({ estado: 'completada' }).eq('id', req.params.id);
-  // Actualizamos la máquina para que vuelva a contar desde hoy
   if (maquina_nombre) {
-    await supabase.from('maquinas').update({ ultima_fecha_mantenimiento: new Date().toISOString().split('T')[0] }).eq('nombre', maquina_nombre);
+    // Reseteamos el contador de la máquina al día de hoy
+    await supabase.from('planes_mantenimiento').update({ ultima_fecha: new Date().toISOString().split('T')[0] }).eq('maquina_id', (await supabase.from('maquinas').select('id').eq('nombre', maquina_nombre).single()).data.id);
   }
   res.json({ success: true });
 });
 
-// 5. PROCESO IA POR VOZ (Mantenido)
+// 5. IA POR VOZ
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}. Si no detectas piezas, deja el array vacío.`;
+    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}.`;
     const result = await model.generateContent(prompt);
     const jsonText = result.response.text().replace(/```json|```/g, "").trim();
     res.json({ success: true, data: JSON.parse(jsonText) });
-  } catch (e) { res.status(500).json({ error: "Error procesando IA" }); }
+  } catch (e) { res.status(500).json({ error: "Error IA" }); }
 });
 
-// 6. GUARDAR INTERVENCIÓN DE AVERÍA (Mantenido)
+// 6. GUARDAR AVERÍA
 app.post('/api/save-intervention', async (req, res) => {
-  const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
-  await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
+  await supabase.from('intervenciones').insert([req.body]);
   res.json({ success: true });
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor MantIA V10 Online en puerto ${PORT}`));
+app.listen(10000, () => console.log("🚀 MantIA Backend V10"));
