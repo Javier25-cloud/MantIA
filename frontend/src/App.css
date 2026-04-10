@@ -138,3 +138,10 @@ body {
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .modal-content { background: white; padding: 30px; border-radius: 20px; text-align: center; }
+/* Animación suave para las tareas */
+.task-card {
+  transition: transform 0.2s;
+}
+.task-card:active {
+  transform: scale(0.98);
+}
