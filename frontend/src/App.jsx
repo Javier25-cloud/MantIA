@@ -30,7 +30,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setChartData(data.chartData || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Error cargando datos:", err); }
   };
 
   useEffect(() => {
@@ -51,6 +51,7 @@ function App() {
 
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return alert("Navegador no compatible.");
     const rec = new SpeechRecognition();
     rec.lang = 'es-ES';
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
@@ -77,21 +78,23 @@ function App() {
     XLSX.writeFile(wb, `${name}.xlsx`);
   };
 
+  // --- PANTALLA DE LOGIN ---
   if (!user) return (
     <div className="container login-screen">
-      <div style={{ marginBottom: '30px' }}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '140px' }} />
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '150px' }} />
         <h1 className="brand-name">MantIA</h1>
       </div>
-      <div className="login-card">
+      <div className="login-card animate-in">
         <form onSubmit={handleLogin}>
           <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
-          <button type="submit" className="confirm-button">ENTRAR</button>
+          <button type="submit" className="confirm-button">ENTRAR AL SISTEMA</button>
         </form>
       </div>
     </div>
   );
 
+  // --- VISTA PRINCIPAL ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
       
@@ -102,13 +105,18 @@ function App() {
       </button>
 
       <header style={{ marginBottom: '30px' }}>
-        <img src="/logo.png" alt="MantIA Logo" style={{ height: '80px' }} />
-        <h2 className="brand-name" style={{fontSize: '1.8rem'}}>MantIA</h2>
+        <img src="/logo.png" alt="MantIA Logo" style={{ height: '90px' }} />
+        <h2 className="brand-name" style={{fontSize: '2rem'}}>MantIA</h2>
       </header>
 
-      <nav className="nav-tabs" style={{display:'flex', justifyContent:'center', width:'fit-content', margin:'0 auto 30px'}}>
-        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
-        <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
+      {/* NAVEGACIÓN PRINCIPAL (SWITCH INDUSTRIAL) */}
+      <nav className="nav-tabs">
+        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>
+          👷 Reporte
+        </button>
+        <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>
+          📊 Gerencia
+        </button>
       </nav>
 
       {view === 'operario' ? (
@@ -132,13 +140,14 @@ function App() {
                   body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id })
                 });
                 setIaData(null);
-                alert("Guardado");
+                alert("Guardado correctamente");
               }}>CONFIRMAR REGISTRO</button>
             </div>
           )}
         </main>
       ) : (
         <div className="dashboard-view animate-in">
+          {/* SUB-NAVEGACIÓN GERENCIA (BOTONES ELEGANTES) */}
           <div className="sub-nav">
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
             <button className={subView === 'maquinas' ? 's-active' : ''} onClick={()=>setSubView('maquinas')}>Máquinas</button>
@@ -148,7 +157,7 @@ function App() {
 
           {subView === 'resumen' && (
             <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
-              <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
+              <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px', textAlign:'left'}}>
                 <h4 style={{marginBottom:'20px', color:'#94a3b8'}}>Frecuencia de Averías</h4>
                 <div style={{height: '250px'}}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -175,9 +184,9 @@ function App() {
           {subView === 'maquinas' && (
             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:'20px'}}>
               {maquinas.map(m => (
-                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px'}}>
-                  <span style={{fontWeight:'800', display:'block', marginBottom:'10px'}}>{m.nombre}</span>
-                  <button onClick={() => setShowQR(m.nombre)} style={{background:'#6366f1', color:'white', border:'none', padding:'8px 15px', borderRadius:'10px', cursor:'pointer', width:'100%'}}>QR</button>
+                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'25px', borderRadius:'20px', textAlign:'center'}}>
+                  <span style={{fontWeight:'800', display:'block', marginBottom:'15px', color:'#0f172a'}}>{m.nombre}</span>
+                  <button onClick={() => setShowQR(m.nombre)} style={{background:'#6366f1', color:'white', border:'none', padding:'10px', borderRadius:'10px', cursor:'pointer', width:'100%', fontWeight:'700'}}>GENERAR QR</button>
                 </div>
               ))}
             </div>
@@ -193,7 +202,7 @@ function App() {
                     <tr key={h.id}>
                       <td>{new Date(h.fecha).toLocaleDateString()}</td>
                       <td style={{fontWeight: 'bold'}}>{h.maquina}</td>
-                      <td>{h.repuestos?.join(', ')}</td>
+                      <td style={{fontSize:'0.85rem'}}>{h.repuestos?.join(', ')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -204,18 +213,15 @@ function App() {
           {subView === 'inventario' && (
             <div>
               <div className="action-bar" style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar</button>
-                <label className="excel-btn import" style={{cursor: 'pointer'}}>📤 Importar
-                  <input type="file" onChange={(e)=>{/* Lógica de importación aquí */}} accept=".xlsx, .xls" hidden />
-                </label>
+                <button className="excel-btn" onClick={() => exportToExcel(stock, "Inventario")}>📥 Exportar Stock</button>
               </div>
               <table className="history-table">
                 <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
                 <tbody>
                   {stock.map(s => (
                     <tr key={s.id}>
-                      <td>{s.nombre}</td>
-                      <td style={{fontWeight: 'bold'}}>{s.stock_actual}</td>
+                      <td style={{fontWeight:'600'}}>{s.nombre}</td>
+                      <td style={{fontWeight: '800'}}>{s.stock_actual}</td>
                       <td>
                         <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
                           {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
@@ -235,8 +241,8 @@ function App() {
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
           <div className="modal-content" style={{background:'white', padding:'30px', borderRadius:'20px', textAlign:'center', color:'#1e293b'}}>
             <h3>Identificador QR</h3>
-            <QRCodeCanvas value={`ID:${showQR}`} size={180} />
-            <p style={{marginTop:'15px', fontWeight:'800'}}>{showQR}</p>
+            <div style={{margin:'20px 0'}}><QRCodeCanvas value={`ID:${showQR}`} size={180} /></div>
+            <p style={{fontWeight:'800', fontSize:'1.2rem'}}>{showQR}</p>
             <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'20px'}}>CERRAR</button>
           </div>
         </div>

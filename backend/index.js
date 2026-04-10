@@ -5,7 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-app.use(cors({ origin: 'https://mant-ia.vercel.app' }));
+// Ajusta el origin según tu URL de Vercel
+app.use(cors({ origin: '*' })); 
 app.use(express.json());
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -17,12 +18,12 @@ app.post('/api/login', (req, res) => {
   if (pinInput === "1234") {
     res.json({ 
       success: true, 
-      user: { id: "cc01eafc-6bdc-44e9-bcf6-793e19a44bd3", nombre: "Javier Caballero", empresa_id: "bbbacdf4-bbc2-494f-9a51-d732cf1cbcaa", rol: "gerente" } 
+      user: { id: "user_01", nombre: "Javier Caballero", empresa_id: "bbbacdf4-bbc2-494f-9a51-d732cf1cbcaa", rol: "gerente" } 
     });
   } else { res.status(401).json({ success: false }); }
 });
 
-// DATOS GERENCIA Y STATS
+// DATOS GERENCIA
 app.get('/api/gerencia-data', async (req, res) => {
   const { empresa_id } = req.query;
   try {
@@ -41,48 +42,36 @@ app.get('/api/gerencia-data', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// IA PROCESAMIENTO
+// PROCESO IA
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}.`;
+    const prompt = `Analiza este reporte técnico: "${text}". Responde únicamente en formato JSON: {"maquina_nombre": "NOMBRE_MAQUINA", "repuestos_usados": ["PIEZA1", "PIEZA2"]}. Si no detectas piezas, deja el array vacío.`;
     const result = await model.generateContent(prompt);
     const jsonText = result.response.text().replace(/```json|```/g, "").trim();
     res.json({ success: true, data: JSON.parse(jsonText) });
-  } catch (error) { res.status(500).json({ error: "IA Error" }); }
+  } catch (error) { res.status(500).json({ error: "Error procesando IA" }); }
 });
 
 // GUARDAR INTERVENCIÓN
 app.post('/api/save-intervention', async (req, res) => {
   const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
-  await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
+  await supabase.from('intervenciones').insert([{ 
+    maquina: maquina_nombre, 
+    repuestos: repuestos_usados, 
+    empresa_id, 
+    usuario_id, 
+    fecha: new Date().toISOString() 
+  }]);
   res.json({ success: true });
 });
 
-// IMPORTAR EXCEL
-app.post('/api/import-inventory', async (req, res) => {
-  const { items, empresa_id } = req.body;
-  const data = items.map(i => ({ 
-    nombre: i.Nombre || i.nombre, 
-    stock_actual: i.Stock_Actual || i.stock_actual, 
-    stock_minimo: i.Stock_Minimo || i.stock_minimo, 
-    empresa_id 
-  }));
-  await supabase.from('repuestos').upsert(data, { onConflict: 'nombre, empresa_id' });
-  res.json({ success: true });
-});
-
-// MODIFICACIONES MANUALES
+// ACTUALIZAR STOCK
 app.put('/api/update-stock/:id', async (req, res) => {
   await supabase.from('repuestos').update({ stock_actual: req.body.nuevoStock }).eq('id', req.params.id);
   res.json({ success: true });
 });
 
-app.delete('/api/delete-intervention/:id', async (req, res) => {
-  await supabase.from('intervenciones').delete().eq('id', req.params.id);
-  res.json({ success: true });
-});
-
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Backend en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor MantIA en puerto ${PORT}`));
