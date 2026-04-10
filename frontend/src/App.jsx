@@ -12,6 +12,8 @@ function App() {
   const [pinInput, setPinInput] = useState('');
   const [view, setView] = useState('operario');
   const [subView, setSubView] = useState('resumen');
+  
+  // Estados de datos
   const [status, setStatus] = useState('');
   const [iaData, setIaData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -20,9 +22,12 @@ function App() {
   const [tareas, setTareas] = useState([]);
   const [planes, setPlanes] = useState([]);
   const [chartData, setChartData] = useState([]);
+  
+  // UI States
   const [isRecording, setIsRecording] = useState(false);
+  const [showQR, setShowQR] = useState(null);
 
-  // Lógica de Calendario: Agrupamos tareas pendientes por fecha
+  // Lógica de Calendario
   const tareasPorDia = tareas.reduce((acc, t) => {
     const fecha = t.fecha_limite;
     if (!acc[fecha]) acc[fecha] = [];
@@ -31,8 +36,7 @@ function App() {
   }, {});
 
   const downloadDailyOrders = (fecha) => {
-    const ordenesDelDia = tareasPorDia[fecha] || [];
-    exportExcel(ordenesDelDia, `Ordenes_Mantenimiento_${fecha}`);
+    exportExcel(tareasPorDia[fecha] || [], `Ordenes_Mantenimiento_${fecha}`);
   };
 
   const fetchData = async () => {
@@ -46,23 +50,40 @@ function App() {
       setTareas(data.tareas || []);
       setPlanes(data.planes || []);
       setChartData(data.chartData || []);
-    } catch (err) { 
-      console.error("Error al obtener datos:", err); 
-    }
+    } catch (err) { console.error("Error API:", err); }
   };
 
   useEffect(() => { fetchData(); }, [user, view]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await fetch(`${API_URL}/api/login`, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ pinInput }) 
-    });
+    const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pinInput }) });
     const result = await res.json();
     if (result.success) setUser(result.user);
     else alert("PIN Incorrecto");
+  };
+
+  // FUNCIÓN RESTAURADA: Reconocimiento de Voz
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return alert("Tu navegador no soporta reconocimiento de voz.");
+    const rec = new SpeechRecognition();
+    rec.lang = 'es-ES';
+    rec.onstart = () => { setIsRecording(true); setStatus('Escuchando avería...'); };
+    rec.onresult = async (e) => {
+      const text = e.results[0][0].transcript;
+      setStatus(`Analizando con IA...`);
+      const res = await fetch(`${API_URL}/api/process-text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const r = await res.json();
+      setIaData(r.data);
+      setStatus('');
+    };
+    rec.onend = () => setIsRecording(false);
+    rec.start();
   };
 
   const exportExcel = (data, name) => {
@@ -72,7 +93,7 @@ function App() {
     XLSX.writeFile(wb, `${name}.xlsx`);
   };
 
-  // --- PANTALLA DE ACCESO ---
+  // --- LOGIN SCREEN ---
   if (!user) return (
     <div className="container login-screen">
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
@@ -88,9 +109,11 @@ function App() {
     </div>
   );
 
-  // --- APLICACIÓN PRINCIPAL ---
+  // --- MAIN APP ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
+      
+      {/* Botón Home Superior Izquierda */}
       <button className="home-nav-btn" onClick={() => setUser(null)}>
         <img src="/logo.png" alt="Logo" />
         <span>MantIA Inicio</span>
@@ -101,31 +124,30 @@ function App() {
         <h2 className="brand-name" style={{fontSize: '2rem'}}>MantIA</h2>
       </header>
 
+      {/* Switch Industrial Principal */}
       <nav className="nav-tabs">
         <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
       </nav>
 
+      {/* VISTA OPERARIO */}
       {view === 'operario' ? (
-        <main className="animate-in">
-          <section style={{textAlign:'left', marginBottom:'30px'}}>
+        <main className="animate-in" style={{width: '100%'}}>
+          
+          <section style={{textAlign:'left', marginBottom:'40px'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-              <h3 style={{color: '#94a3b8', fontSize: '0.9rem'}}>📋 TAREAS DE HOY</h3>
-              <button className="excel-btn" style={{padding:'5px 10px', fontSize:'0.7rem'}} onClick={() => exportExcel(tareas.filter(t=>t.estado==='pendiente'), "Tareas_Hoy")}>📥 Bajar Hoja</button>
+              <h3 style={{color: '#94a3b8', fontSize: '0.9rem'}}>📋 TAREAS PREVENTIVAS HOY</h3>
+              <button className="excel-btn" style={{padding:'5px 10px', fontSize:'0.7rem', marginBottom:0}} onClick={() => exportExcel(tareas.filter(t=>t.estado==='pendiente'), "Tareas_Hoy")}>📥 Bajar Hoja</button>
             </div>
             {tareas.filter(t => t.estado === 'pendiente').length === 0 ? (
-              <p style={{color:'#94a3b8', textAlign:'center'}}>No hay tareas pendientes para hoy.</p>
+              <p style={{color:'#94a3b8', textAlign:'center', background:'rgba(255,255,255,0.05)', padding:'20px', borderRadius:'10px'}}>No hay tareas preventivas para hoy.</p>
             ) : (
               tareas.filter(t => t.estado === 'pendiente').map(t => (
                 <div key={t.id} style={{background: 'white', padding:'15px', borderRadius:'15px', color:'#1e293b', marginBottom:'10px', borderLeft:'6px solid #6366f1'}}>
                   <div style={{fontWeight:'800'}}>{t.titulo}</div>
                   <div style={{fontSize:'0.75rem', color:'#64748b'}}>{t.maquina_nombre} - Límite: {t.fecha_limite}</div>
                   <button onClick={async () => {
-                    await fetch(`${API_URL}/api/complete-task/${t.id}`, { 
-                      method: 'PUT', 
-                      headers:{'Content-Type':'application/json'}, 
-                      body:JSON.stringify({maquina_nombre: t.maquina_nombre}) 
-                    });
+                    await fetch(`${API_URL}/api/complete-task/${t.id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_nombre: t.maquina_nombre}) });
                     fetchData();
                   }} style={{marginTop:'10px', background:'#10b981', color:'white', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'700', width:'100%'}}>HECHO ✓</button>
                 </div>
@@ -134,14 +156,31 @@ function App() {
           </section>
 
           <div className="voice-section">
-            <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={() => alert("Función de voz próximamente...")}>
+            <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}>
               <span style={{fontSize: '4rem'}}>🎤</span>
             </button>
-            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>O REPORTA UNA AVERÍA</p>
+            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'TE ESCUCHO...' : 'REPORTA NUEVA AVERÍA'}</p>
+            {status && <div className="status-pill status-ok" style={{marginTop:'15px', display:'inline-block'}}>{status}</div>}
           </div>
+
+          {iaData && (
+            <div className="ia-card" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', textAlign:'left', marginTop:'20px'}}>
+              <h3>Detección IA (Avería)</h3>
+              <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
+              <p><strong>Piezas Usadas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
+              <button className="confirm-button" onClick={async () => {
+                await fetch(`${API_URL}/api/save-intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id }) });
+                setIaData(null);
+                alert("Avería registrada");
+                fetchData();
+              }} style={{marginTop:'15px'}}>CONFIRMAR REGISTRO</button>
+            </div>
+          )}
         </main>
       ) : (
-        <div className="dashboard-view animate-in">
+
+      /* VISTA GERENCIA */
+        <div className="dashboard-view animate-in" style={{width: '100%'}}>
           <div className="sub-nav">
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
             <button className={subView === 'calendario' ? 's-active' : ''} onClick={()=>setSubView('calendario')}>📅 Calendario</button>
@@ -153,7 +192,7 @@ function App() {
           {subView === 'resumen' && (
             <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop:'20px'}}>
               <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
-                <h4 style={{marginBottom:'20px', color:'#94a3b8'}}>Frecuencia de Averías</h4>
+                <h4 style={{marginBottom:'20px', color:'#94a3b8', textAlign:'left'}}>Averías por Máquina</h4>
                 <div style={{height: '250px'}}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} layout="vertical">
@@ -171,7 +210,7 @@ function App() {
                 <div style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
                 <p>Intervenciones Totales</p>
                 <div style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
-                <p>Artículos bajo stock mínimo</p>
+                <p>Stock Crítico</p>
               </div>
             </div>
           )}
@@ -197,33 +236,47 @@ function App() {
           )}
 
           {subView === 'maquinas' && (
-            <div className="machine-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'20px', marginTop:'20px'}}>
+            <div className="machine-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'20px', marginTop:'20px'}}>
               {maquinas.map(m => (
-                <div key={m.id} className="machine-item" style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'left', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>
-                  <span style={{fontWeight:'900', fontSize:'1.1rem', display:'block', marginBottom:'10px', color:'#0f172a'}}>{m.nombre}</span>
-                  <div style={{marginBottom:'15px', padding:'10px', background:'#f8fafc', borderRadius:'10px'}}>
-                    <span style={{fontSize:'0.7rem', color:'#64748b', fontWeight:'bold'}}>PLANES PREVENTIVOS:</span>
-                    {planes.filter(p => p.maquina_id === m.id).length === 0 ? (
+                <div key={m.id} className="machine-item" style={{background:'white', color:'#1e293b', padding:'25px', borderRadius:'20px', textAlign:'left', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>
+                  
+                  {/* Header de la tarjeta */}
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                    <span style={{fontWeight:'900', fontSize:'1.1rem', color:'#0f172a'}}>{m.nombre}</span>
+                    <button onClick={() => setShowQR(m.nombre)} style={{background:'#f1f5f9', border:'none', padding:'5px 10px', borderRadius:'8px', cursor:'pointer', fontSize:'1.2rem'}} title="Ver QR">🔲</button>
+                  </div>
+
+                  {/* Lista de Planes Preventivos */}
+                  <div style={{marginBottom:'15px', padding:'12px', background:'#f8fafc', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                    <span style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'bold'}}>PLANES PREVENTIVOS ACTIVOS:</span>
+                    {(!planes || !Array.isArray(planes)) ? (
+                      <p style={{fontSize:'0.8rem', marginTop:'5px', color:'#94a3b8'}}>Cargando planes...</p>
+                    ) : planes.filter(p => p.maquina_id === m.id).length === 0 ? (
                       <p style={{fontSize:'0.8rem', marginTop:'5px', color:'#94a3b8'}}>Sin planes activos.</p>
                     ) : (
                       planes.filter(p => p.maquina_id === m.id).map(p => (
-                        <div key={p.id} style={{fontSize:'0.8rem', padding:'5px 0', borderBottom:'1px solid #e2e8f0', color:'#334155'}}>
-                          🛠 <b>{p.titulo}</b> <span style={{color:'#6366f1'}}>(Cada {p.frecuencia_dias}d)</span>
+                        <div key={p.id} style={{fontSize:'0.8rem', padding:'6px 0', borderBottom:'1px solid #e2e8f0', color:'#334155'}}>
+                          🛠 <b>{p.titulo}</b> <span style={{color:'#6366f1', fontSize:'0.7rem'}}>(Cada {p.frecuencia_dias}d)</span>
                         </div>
                       ))
                     )}
                   </div>
-                  <button onClick={() => {
+
+                  {/* Botón Añadir Plan (Con Escudo de Errores) */}
+                  <button onClick={async () => {
                     const t = prompt("Nombre del mantenimiento (ej: Engrase rodillos)");
                     const f = prompt("Frecuencia en días (ej: 15)");
                     if(t && f) {
-                      fetch(`${API_URL}/api/add-plan`, {
+                      const response = await fetch(`${API_URL}/api/add-plan`, {
                         method:'POST', 
                         headers:{'Content-Type':'application/json'}, 
                         body:JSON.stringify({maquina_id: m.id, titulo: t, frecuencia_dias: parseInt(f), empresa_id: user.empresa_id})
-                      }).then(()=>fetchData());
+                      });
+                      const data = await response.json();
+                      if (data.error) alert("Error de Base de Datos: " + data.error);
+                      else fetchData();
                     }
-                  }} className="confirm-button" style={{padding:'10px', fontSize:'0.8rem', background:'#10b981'}}>+ AÑADIR PLAN</button>
+                  }} className="confirm-button" style={{padding:'12px', fontSize:'0.8rem', background:'#10b981', boxShadow:'0 4px 10px rgba(16, 185, 129, 0.3)'}}>+ AÑADIR PLAN A MÁQUINA</button>
                 </div>
               ))}
             </div>
@@ -231,15 +284,15 @@ function App() {
 
           {subView === 'historial' && (
             <div style={{marginTop:'20px'}}>
-              <button className="excel-btn" onClick={() => exportExcel(history, "Historial_Intervenciones")}>📥 Exportar Excel</button>
+              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(history, "Historial_Intervenciones")}>📥 Exportar Historial</button></div>
               <table className="history-table">
-                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas Usadas</th></tr></thead>
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>
                       <td>{new Date(h.fecha).toLocaleDateString()}</td>
                       <td style={{fontWeight:'700'}}>{h.maquina}</td>
-                      <td>{h.repuestos?.join(', ') || 'Ninguna'}</td>
+                      <td style={{fontSize:'0.85rem'}}>{h.repuestos?.join(', ') || 'Ninguna'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -249,14 +302,14 @@ function App() {
 
           {subView === 'inventario' && (
             <div style={{marginTop:'20px'}}>
-              <button className="excel-btn" onClick={() => exportExcel(stock, "Estado_Inventario")}>📥 Exportar Stock</button>
+              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(stock, "Estado_Inventario")}>📥 Exportar Stock</button></div>
               <table className="history-table">
                 <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
                 <tbody>
                   {stock.map(s => (
                     <tr key={s.id}>
                       <td>{s.nombre}</td>
-                      <td style={{fontWeight:'700'}}>{s.stock_actual}</td>
+                      <td style={{fontWeight:'800'}}>{s.stock_actual}</td>
                       <td>
                         <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
                           {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
@@ -268,7 +321,20 @@ function App() {
               </table>
             </div>
           )}
-          <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión</button>
+
+          <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión Segura</button>
+        </div>
+      )}
+
+      {/* Modal QR Restaurado */}
+      {showQR && (
+        <div className="modal-overlay" onClick={()=>setShowQR(null)}>
+          <div className="modal-content" style={{background:'white', padding:'30px', borderRadius:'20px', textAlign:'center', color:'#1e293b'}}>
+            <h3>Código QR Maquinaria</h3>
+            <div style={{margin:'20px 0'}}><QRCodeCanvas value={`ID:${showQR}`} size={180} /></div>
+            <p style={{fontWeight:'800', fontSize:'1.2rem'}}>{showQR}</p>
+            <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'20px'}}>CERRAR</button>
+          </div>
         </div>
       )}
     </div>
