@@ -23,7 +23,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [showQR, setShowQR] = useState(null);
 
-  // Lógica de Calendario
+  // --- LÓGICA DE PROYECCIÓN DE CALENDARIO (60 DÍAS) ---
   const tareasPorDia = tareas.reduce((acc, t) => {
     const fecha = t.fecha_limite;
     if (!acc[fecha]) acc[fecha] = [];
@@ -31,6 +31,35 @@ function App() {
     return acc;
   }, {});
 
+  const today = new Date();
+  planes.forEach(plan => {
+    if (!plan.frecuencia_dias || plan.frecuencia_dias <= 0) return;
+    const maquina = maquinas.find(m => m.id === plan.maquina_id);
+    if (!maquina) return;
+
+    let cursorDate = new Date(plan.ultima_fecha || new Date());
+    for (let i = 0; i < 60; i++) {
+      cursorDate.setDate(cursorDate.getDate() + plan.frecuencia_dias);
+      const dStr = cursorDate.toISOString().split('T')[0];
+
+      const existeReal = (tareasPorDia[dStr] || []).find(t => t.titulo === plan.titulo && t.maquina_nombre === maquina.nombre);
+      
+      if (!existeReal) {
+        if (!tareasPorDia[dStr]) tareasPorDia[dStr] = [];
+        tareasPorDia[dStr].push({
+          id: `virtual-${plan.id}-${dStr}`,
+          maquina_nombre: maquina.nombre,
+          titulo: plan.titulo,
+          estado: 'futuro', 
+          fecha_limite: dStr
+        });
+      }
+    }
+  });
+
+  const todasLasTareasCalendario = Object.values(tareasPorDia).flat();
+
+  // --- OBTENCIÓN DE DATOS ---
   const fetchData = async () => {
     if (!user) return;
     try {
@@ -47,6 +76,7 @@ function App() {
 
   useEffect(() => { fetchData(); }, [user, view]);
 
+  // --- ACCIONES ---
   const handleLogin = async (e) => {
     e.preventDefault();
     const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pinInput }) });
@@ -62,7 +92,7 @@ function App() {
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
     rec.onresult = async (e) => {
       const text = e.results[0][0].transcript;
-      setStatus('Analizando...');
+      setStatus('Analizando con IA...');
       const res = await fetch(`${API_URL}/api/process-text`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
       const r = await res.json();
       setIaData(r.data);
@@ -79,6 +109,7 @@ function App() {
     XLSX.writeFile(wb, `${name}.xlsx`);
   };
 
+  // --- VISTA DE LOGIN ---
   if (!user) return (
     <div className="container login-screen">
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
@@ -94,6 +125,7 @@ function App() {
     </div>
   );
 
+  // --- VISTA APLICACIÓN ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
       <button className="home-nav-btn" onClick={() => setUser(null)}><img src="/logo.png" alt="Logo" /><span>MantIA Inicio</span></button>
@@ -108,30 +140,50 @@ function App() {
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
       </nav>
 
+      {/* --- PANEL OPERARIO --- */}
       {view === 'operario' ? (
-        <main className="animate-in">
+        <main className="animate-in" style={{width: '100%'}}>
           <section style={{textAlign:'left', marginBottom:'30px'}}>
-            <h3 style={{color: '#94a3b8', fontSize: '0.9rem', marginBottom:'15px'}}>📋 TAREAS DE HOY</h3>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+              <h3 style={{color: '#94a3b8', fontSize: '0.9rem'}}>📋 TAREAS DE HOY</h3>
+              <button className="excel-btn" style={{padding:'5px 10px', fontSize:'0.7rem', margin:0}} onClick={() => exportExcel(tareas.filter(t=>t.estado==='pendiente'), "Tareas_Hoy")}>📥 Bajar Hoja</button>
+            </div>
             {tareas.filter(t => t.estado === 'pendiente').map(t => (
               <div key={t.id} style={{background: 'white', padding:'15px', borderRadius:'15px', color:'#1e293b', marginBottom:'10px', borderLeft:'6px solid #6366f1'}}>
                 <div style={{fontWeight:'800'}}>{t.titulo}</div>
-                <div style={{fontSize:'0.75rem', color:'#64748b'}}>{t.maquina_nombre} - {t.fecha_limite}</div>
+                <div style={{fontSize:'0.75rem', color:'#64748b'}}>{t.maquina_nombre} - Límite: {t.fecha_limite}</div>
                 <button onClick={async () => {
-                  await fetch(`${API_URL}/api/complete-task/${t.id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_nombre: t.maquina_nombre}) });
+                  await fetch(`${API_URL}/api/complete-task/${t.id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_nombre: t.maquina_nombre, titulo_tarea: t.titulo}) });
                   fetchData();
-                }} style={{marginTop:'10px', background:'#10b981', color:'white', border:'none', padding:'8px', borderRadius:'8px', cursor:'pointer', width:'100%', fontWeight:'bold'}}>HECHO ✓</button>
+                }} style={{marginTop:'10px', background:'#10b981', color:'white', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'700', width:'100%'}}>HECHO ✓</button>
               </div>
             ))}
           </section>
 
           <div className="voice-section">
             <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}><span style={{fontSize:'4rem'}}>🎤</span></button>
-            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'HABLA...' : 'REPORTAR AVERÍA'}</p>
+            <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'ESCUCHANDO...' : 'REPORTAR AVERÍA'}</p>
             {status && <div className="status-pill status-ok" style={{marginTop:'10px'}}>{status}</div>}
           </div>
+
+          {iaData && (
+            <div className="ia-card animate-in" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', textAlign:'left', marginTop:'20px'}}>
+              <h3>Detección IA (Avería)</h3>
+              <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
+              <p><strong>Piezas Usadas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
+              <button className="confirm-button" onClick={async () => {
+                await fetch(`${API_URL}/api/save-intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id }) });
+                setIaData(null);
+                alert("Avería registrada con éxito.");
+                fetchData();
+              }} style={{marginTop:'15px'}}>CONFIRMAR REGISTRO</button>
+            </div>
+          )}
         </main>
       ) : (
-        <div className="dashboard-view animate-in">
+
+        /* --- PANEL GERENCIA --- */
+        <div className="dashboard-view animate-in" style={{width: '100%'}}>
           <div className="sub-nav">
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
             <button className={subView === 'calendario' ? 's-active' : ''} onClick={()=>setSubView('calendario')}>📅 Calendario</button>
@@ -140,34 +192,70 @@ function App() {
             <button className={subView === 'inventario' ? 's-active' : ''} onClick={()=>setSubView('inventario')}>Stock</button>
           </div>
 
+          {subView === 'resumen' && (
+            <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop:'20px'}}>
+              <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
+                <h4 style={{marginBottom:'20px', color:'#94a3b8', textAlign:'left'}}>Frecuencia de Averías</h4>
+                <div style={{height: '250px'}}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} layout="vertical">
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={100} style={{fontSize: '12px', fill:'#fff'}} />
+                      <Tooltip cursor={{fill: 'transparent'}} />
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                        {chartData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="stat-card" style={{textAlign: 'center', background: '#1e293b', padding: '20px', borderRadius: '20px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
+                <div style={{fontSize: '3rem', fontWeight: '800', color: '#6366f1'}}>{history.length}</div>
+                <p>Intervenciones Totales</p>
+                <div style={{fontSize: '3rem', fontWeight: '800', color: '#ef4444', marginTop: '20px'}}>{stock.filter(s=>s.stock_actual <= s.stock_minimo).length}</div>
+                <p>Stock Crítico</p>
+              </div>
+            </div>
+          )}
+
           {subView === 'calendario' && (() => {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const firstDay = new Date(year, month, 1).getDay();
-            const emptySlots = firstDay === 0 ? 6 : firstDay - 1;
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const emptySlots = firstDay === 0 ? 6 : firstDay - 1; // Lunes = 1
             const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
             const blanks = Array.from({length: emptySlots}, (_, i) => i);
             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
             return (
-              <div style={{marginTop: '20px', background: 'white', padding: '20px', borderRadius: '20px', color: '#1e293b'}}>
-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px'}}>
-                  <h3 style={{fontWeight:'900'}}>{monthNames[month].toUpperCase()} {year}</h3>
-                  <button className="excel-btn" style={{padding:'5px 10px', fontSize:'0.7rem', marginBottom:0}} onClick={()=>exportExcel(tareas, "Calendario_MantIA")}>📥 Exportar Mes</button>
+              <div style={{marginTop: '20px', background: 'white', padding: '25px', borderRadius: '20px', color: '#1e293b', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems: 'center', marginBottom:'20px'}}>
+                  <h3 style={{fontWeight:'900', fontSize:'1.4rem'}}>{monthNames[currentMonth].toUpperCase()} {currentYear}</h3>
+                  <button className="excel-btn" style={{padding:'8px 15px', fontSize:'0.8rem', margin:0}} onClick={()=>exportExcel(todasLasTareasCalendario, `Planificacion_${monthNames[currentMonth]}`)}>📥 Exportar Mes</button>
                 </div>
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px'}}>
-                  {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => <div key={d} style={{fontWeight:'800', fontSize:'0.7rem', color:'#94a3b8'}}>{d}</div>)}
-                  {blanks.map(b => <div key={`b-${b}`}></div>)}
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px'}}>
+                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => <div key={d} style={{fontWeight:'900', fontSize:'0.85rem', color:'#64748b', textAlign:'center', borderBottom:'2px solid #f1f5f9', paddingBottom:'10px'}}>{d}</div>)}
+                  {blanks.map(b => <div key={`b-${b}`} style={{minHeight:'100px'}}></div>)}
                   {days.map(day => {
-                    const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                    const dStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                     const tDelDia = tareasPorDia[dStr] || [];
                     const isToday = new Date().toISOString().split('T')[0] === dStr;
                     return (
-                      <div key={day} style={{border: '1px solid #f1f5f9', borderRadius: '8px', minHeight: '60px', padding: '4px', background: isToday ? '#eef2ff' : 'transparent'}}>
-                        <div style={{fontSize:'0.7rem', fontWeight:'800', color: isToday ? '#6366f1' : '#1e293b'}}>{day}</div>
-                        {tDelDia.map(t => <div key={t.id} style={{fontSize:'0.5rem', padding:'2px', borderRadius:'3px', background: t.estado==='pendiente' ? '#fee2e2' : '#dcfce7', color: t.estado==='pendiente' ? '#991b1b' : '#166534', marginBottom:'2px', overflow:'hidden'}}>{t.maquina_nombre}</div>)}
+                      <div key={day} style={{border: isToday ? '2px solid #6366f1' : '1px solid #e2e8f0', borderRadius: '10px', minHeight: '100px', padding: '8px', display:'flex', flexDirection:'column', background: isToday ? '#eef2ff' : (tDelDia.length > 0 ? '#f8fafc' : 'transparent')}}>
+                        <div style={{fontSize:'0.9rem', fontWeight:'800', color: isToday ? 'white' : '#94a3b8', alignSelf:'flex-end', background: isToday ? '#6366f1' : 'transparent', padding: isToday ? '2px 8px' : '0', borderRadius:'6px'}}>{day}</div>
+                        <div style={{flex:1, marginTop:'8px', display:'flex', flexDirection:'column', gap:'4px'}}>
+                          {tDelDia.map(t => (
+                            <div key={t.id} style={{
+                              fontSize:'0.6rem', padding:'4px 6px', borderRadius:'6px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                              background: t.estado === 'futuro' ? '#f1f5f9' : (t.estado === 'pendiente' ? '#fee2e2' : '#dcfce7'),
+                              color: t.estado === 'futuro' ? '#475569' : (t.estado === 'pendiente' ? '#991b1b' : '#166534'),
+                              borderLeft: `3px solid ${t.estado === 'futuro' ? '#94a3b8' : (t.estado === 'pendiente' ? '#ef4444' : '#10b981')}`
+                            }} title={`${t.maquina_nombre} - ${t.titulo}`}>
+                              <b>{t.maquina_nombre}</b> {t.titulo}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
@@ -179,42 +267,87 @@ function App() {
           {subView === 'maquinas' && (
             <div className="machine-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'20px', marginTop:'20px'}}>
               {maquinas.map(m => (
-                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'left'}}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div key={m.id} style={{background:'white', color:'#1e293b', padding:'25px', borderRadius:'20px', textAlign:'left', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                     <span style={{fontWeight:'900', fontSize:'1.1rem'}}>{m.nombre}</span>
-                    <button onClick={()=>setShowQR(m.nombre)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'1.2rem'}}>🔲</button>
+                    <button onClick={()=>setShowQR(m.nombre)} style={{background:'#f1f5f9', border:'none', cursor:'pointer', fontSize:'1.2rem', padding:'5px 10px', borderRadius:'8px'}} title="Ver QR">🔲</button>
                   </div>
-                  <div style={{margin:'10px 0', padding:'10px', background:'#f8fafc', borderRadius:'10px'}}>
-                    <span style={{fontSize:'0.7rem', fontWeight:'800', color:'#94a3b8'}}>PLANES ACTIVOS:</span>
-                    {planes.filter(p => p.maquina_id === m.id).map(p => (
-                      <div key={p.id} style={{fontSize:'0.8rem', borderBottom:'1px solid #f1f5f9', padding:'4px 0'}}>🛠 {p.titulo} ({p.frecuencia_dias}d)</div>
-                    ))}
+                  <div style={{marginBottom:'15px', padding:'12px', background:'#f8fafc', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                    <span style={{fontSize:'0.75rem', fontWeight:'800', color:'#64748b'}}>PLANES PREVENTIVOS ACTIVOS:</span>
+                    {planes.filter(p => p.maquina_id === m.id).length === 0 ? (
+                      <p style={{fontSize:'0.8rem', marginTop:'5px', color:'#94a3b8'}}>Sin planes.</p>
+                    ) : (
+                      planes.filter(p => p.maquina_id === m.id).map(p => (
+                        <div key={p.id} style={{fontSize:'0.8rem', borderBottom:'1px solid #e2e8f0', padding:'6px 0', color:'#334155'}}>🛠 <b>{p.titulo}</b> <span style={{color:'#6366f1', fontSize:'0.7rem'}}>(Cada {p.frecuencia_dias}d)</span></div>
+                      ))
+                    )}
                   </div>
                   <button onClick={async () => {
-                    const t = prompt("Tarea (ej: Engrase)");
-                    const f = prompt("Días frecuencia (ej: 30)");
+                    const t = prompt("Nueva tarea (ej: Cambio de aceite)");
+                    const f = prompt("Frecuencia en días (ej: 30)");
                     if(t && f) {
-                      await fetch(`${API_URL}/api/add-plan`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_id: m.id, titulo: t, frecuencia_dias: parseInt(f), empresa_id: user.empresa_id, ultima_fecha: new Date().toISOString().split('T')[0]}) });
-                      fetchData();
+                      const resp = await fetch(`${API_URL}/api/add-plan`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_id: m.id, titulo: t, frecuencia_dias: parseInt(f), empresa_id: user.empresa_id, ultima_fecha: new Date().toISOString().split('T')[0]}) });
+                      const data = await resp.json();
+                      if(data.error) alert("Error DB: " + data.error); else fetchData();
                     }
-                  }} className="confirm-button" style={{padding:'10px', fontSize:'0.8rem', background:'#10b981'}}>+ AÑADIR PLAN</button>
+                  }} className="confirm-button" style={{padding:'12px', fontSize:'0.8rem', background:'#10b981', boxShadow:'0 4px 10px rgba(16,185,129,0.3)'}}>+ AÑADIR PLAN</button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Resto de vistas: Historial, Stock e Inventario simplificadas pero funcionales */}
+          {subView === 'historial' && (
+            <div style={{marginTop:'20px'}}>
+              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(history, "Historial_Averias")}>📥 Exportar Historial</button></div>
+              <table className="history-table">
+                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas Usadas</th></tr></thead>
+                <tbody>
+                  {history.map(h => (
+                    <tr key={h.id}>
+                      <td>{new Date(h.fecha).toLocaleDateString()}</td>
+                      <td style={{fontWeight:'700'}}>{h.maquina}</td>
+                      <td style={{fontSize:'0.85rem'}}>{h.repuestos?.join(', ') || 'Ninguna'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {subView === 'inventario' && (
+            <div style={{marginTop:'20px'}}>
+              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(stock, "Estado_Inventario")}>📥 Exportar Stock</button></div>
+              <table className="history-table">
+                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
+                <tbody>
+                  {stock.map(s => (
+                    <tr key={s.id}>
+                      <td>{s.nombre}</td>
+                      <td style={{fontWeight:'800'}}>{s.stock_actual}</td>
+                      <td>
+                        <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
+                          {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión</button>
         </div>
       )}
 
+      {/* --- MODAL DE QR --- */}
       {showQR && (
         <div className="modal-overlay" onClick={()=>setShowQR(null)}>
           <div className="modal-content" style={{background:'white', padding:'30px', borderRadius:'20px', textAlign:'center', color:'#1e293b'}}>
             <h3>Código QR Maquinaria</h3>
             <div style={{margin:'20px 0'}}><QRCodeCanvas value={`ID:${showQR}`} size={180} /></div>
-            <p style={{fontWeight:'800'}}>{showQR}</p>
-            <button onClick={()=>setShowQR(null)} className="confirm-button">CERRAR</button>
+            <p style={{fontWeight:'800', fontSize:'1.2rem'}}>{showQR}</p>
+            <button onClick={()=>setShowQR(null)} className="confirm-button" style={{marginTop:'20px'}}>CERRAR</button>
           </div>
         </div>
       )}

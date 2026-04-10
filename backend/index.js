@@ -19,7 +19,7 @@ app.post('/api/login', (req, res) => {
   } else { res.status(401).json({ success: false }); }
 });
 
-// 2. MOTOR DE AUTOGENERACIÓN (V10)
+// 2. MOTOR DE AUTOGENERACIÓN Y DATOS GERENCIA
 app.get('/api/gerencia-data', async (req, res) => {
   const { empresa_id } = req.query;
   try {
@@ -32,7 +32,7 @@ app.get('/api/gerencia-data', async (req, res) => {
     ]);
 
     const hoy = new Date();
-    // Revisar cada plan para ver si hay que crear una tarea
+    // Bucle inteligente que revisa todos los planes
     for (let plan of (allPlans.data || [])) {
       const ultima = new Date(plan.ultima_fecha);
       const diasPasados = Math.floor((hoy - ultima) / (1000 * 60 * 60 * 24));
@@ -50,6 +50,8 @@ app.get('/api/gerencia-data', async (req, res) => {
     }
 
     const finalTasks = await supabase.from('tareas').select('*').eq('empresa_id', empresa_id).order('fecha_limite', { ascending: true });
+    
+    // Gráfica de averías
     const counts = {};
     history.data?.forEach(i => counts[i.maquina] = (counts[i.maquina] || 0) + 1);
     const chartData = Object.keys(counts).map(name => ({ name, valor: counts[name] }));
@@ -58,25 +60,29 @@ app.get('/api/gerencia-data', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 3. GESTIÓN DE PLANES
+// 3. AÑADIR NUEVO PLAN MULTI-MÁQUINA
 app.post('/api/add-plan', async (req, res) => {
   const { error } = await supabase.from('planes_mantenimiento').insert([req.body]);
   if (error) return res.status(400).json({ success: false, error: error.message });
   res.json({ success: true });
 });
 
-// 4. COMPLETAR TAREA
+// 4. COMPLETAR TAREA Y RESETEAR RELOJ DEL PLAN
 app.put('/api/complete-task/:id', async (req, res) => {
-  const { maquina_nombre } = req.body;
+  const { maquina_nombre, titulo_tarea } = req.body;
   await supabase.from('tareas').update({ estado: 'completada' }).eq('id', req.params.id);
-  if (maquina_nombre) {
-    // Reseteamos el contador de la máquina al día de hoy
-    await supabase.from('planes_mantenimiento').update({ ultima_fecha: new Date().toISOString().split('T')[0] }).eq('maquina_id', (await supabase.from('maquinas').select('id').eq('nombre', maquina_nombre).single()).data.id);
+  
+  if (maquina_nombre && titulo_tarea) {
+    const maq = await supabase.from('maquinas').select('id').eq('nombre', maquina_nombre).single();
+    if (maq.data) {
+      await supabase.from('planes_mantenimiento').update({ ultima_fecha: new Date().toISOString().split('T')[0] })
+        .eq('maquina_id', maq.data.id).eq('titulo', titulo_tarea);
+    }
   }
   res.json({ success: true });
 });
 
-// 5. IA POR VOZ
+// 5. PROCESAMIENTO IA POR VOZ
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
@@ -88,10 +94,12 @@ app.post('/api/process-text', async (req, res) => {
   } catch (e) { res.status(500).json({ error: "Error IA" }); }
 });
 
-// 6. GUARDAR AVERÍA
+// 6. GUARDAR REPORTE DE AVERÍA (Operario)
 app.post('/api/save-intervention', async (req, res) => {
-  await supabase.from('intervenciones').insert([req.body]);
+  const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
+  await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
   res.json({ success: true });
 });
 
-app.listen(10000, () => console.log("🚀 MantIA Backend V10"));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 Servidor MantIA V11 Online en puerto ${PORT}`));

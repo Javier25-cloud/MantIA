@@ -3,63 +3,71 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --primary: #6366f1;
-  --bg-dark: #0f172a;
-  --card-bg: #1e293b;
-  --text-main: #f8fafc;
-  --text-dim: #94a3b8;
-  --danger: #ef4444;
-  --success: #10b981;
+  --primary: #6366f1; --bg-dark: #0f172a; --card-bg: #1e293b;
+  --text-main: #f8fafc; --text-dim: #94a3b8; --danger: #ef4444; --success: #10b981;
 }
 
 body {
-  background-color: var(--bg-dark) !important;
-  color: var(--text-main);
-  font-family: 'Inter', sans-serif;
-  min-height: 100vh;
+  background-color: var(--bg-dark) !important; color: var(--text-main);
+  font-family: 'Inter', sans-serif; min-height: 100vh;
 }
 
 .container { 
-  width: 100%; max-width: 1100px; margin: 0 auto;
-  padding: 60px 20px; display: flex; flex-direction: column; align-items: center;
-  position: relative; 
+  width: 100%; max-width: 1100px; margin: 0 auto; padding: 60px 20px; 
+  display: flex; flex-direction: column; align-items: center; position: relative; 
 }
 
-.brand-name { color: var(--text-main); font-weight: 900; margin-top: 10px; letter-spacing: -1px; }
-
+/* MARCA Y BOTÓN HOME */
+.brand-name { color: var(--text-main); font-weight: 900; margin-top: 10px; letter-spacing: -1px; text-align: center; }
 .home-nav-btn {
-  position: absolute; top: 20px; left: 20px;
-  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 16px; border-radius: 12px; display: flex; align-items: center; gap: 10px;
-  cursor: pointer; z-index: 10;
+  position: absolute; top: 20px; left: 20px; background: rgba(255, 255, 255, 0.05); 
+  border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 16px; border-radius: 12px; 
+  display: flex; align-items: center; gap: 10px; cursor: pointer; transition: 0.2s; z-index: 10;
 }
+.home-nav-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--primary); }
 .home-nav-btn span { color: var(--text-main); font-weight: 700; font-size: 0.8rem; }
-.home-nav-btn img { height: 20px; }
+.home-nav-btn img { height: 20px; width: auto; }
 
-.nav-tabs { 
+/* NAVEGACIÓN INDUSTRIAL BOLD */
+.nav-tabs {
   display: flex; background: rgba(15, 23, 42, 0.8); padding: 8px; border-radius: 22px; 
-  margin-bottom: 40px; border: 1px solid rgba(255, 255, 255, 0.1); 
+  margin-bottom: 40px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 .nav-tabs button {
   padding: 14px 34px; border: none; background: transparent; color: var(--text-dim);
-  cursor: pointer; border-radius: 16px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 1.5px; transition: 0.3s; display: flex; align-items: center; gap: 10px;
+  cursor: pointer; border-radius: 16px; font-weight: 800; font-size: 0.9rem;
+  text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.3s;
+  display: flex; align-items: center; gap: 10px;
 }
-.nav-tabs button.active { background: var(--primary); color: white; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5); }
+.nav-tabs button.active { background: var(--primary); color: white; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5); transform: translateY(-1px); }
 
-.sub-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; justify-content: center; }
+/* SUB-NAVEGACIÓN GERENCIA */
+.sub-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; width: 100%; justify-content: center; }
 .sub-nav button {
   padding: 12px 20px; background: var(--card-bg); border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dim); border-radius: 12px; cursor: pointer; font-weight: 700;
+  color: var(--text-dim); border-radius: 12px; cursor: pointer; font-weight: 700; transition: 0.2s;
 }
 .sub-nav button.s-active { background: white; color: var(--bg-dark); }
 
-.confirm-button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; }
-.record-btn-giant { width: 160px; height: 160px; border-radius: 50%; border: none; background: linear-gradient(135deg, #6366f1, #a855f7); cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+/* TABLAS Y EXCEL */
+.history-table { width: 100%; background: white; border-radius: 20px; overflow: hidden; border-collapse: collapse; }
+.history-table th { background: #f1f5f9; padding: 18px; color: #64748b; font-size: 0.7rem; text-transform: uppercase; text-align: left; letter-spacing: 1px; }
+.history-table td { padding: 16px 20px; color: #1e293b !important; border-bottom: 1px solid #f1f5f9; text-align: left; }
+.excel-btn { background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+
+/* BOTÓN VOZ */
+.record-btn-giant { width: 160px; height: 160px; border-radius: 50%; border: none; background: linear-gradient(135deg, #6366f1, #a855f7); cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3); }
 .is-recording { animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); } 70% { box-shadow: 0 0 0 30px rgba(99, 102, 241, 0); } 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); } }
 
+/* LOGIN & VARIOS */
+.login-card { background: var(--card-bg); padding: 40px; border-radius: 28px; width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,0.1); }
+.pin-input { width: 100%; padding: 15px; border-radius: 12px; background: #0f172a; border: 2px solid #334155; color: white; font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
+.confirm-button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; }
 .logout-btn { margin-top: 40px; background: var(--danger); color: white; border: none; padding: 16px; border-radius: 16px; font-weight: 800; cursor: pointer; width: 100%; }
+.status-pill { padding: 6px 12px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; }
+.status-ok { background: #dcfce7; color: #166534; }
+.status-warn { background: #fee2e2; color: #991b1b; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .modal-content { background: white; padding: 30px; border-radius: 20px; text-align: center; }
 .animate-in { animation: fadeIn 0.4s ease-out; }
