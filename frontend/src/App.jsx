@@ -229,12 +229,13 @@ function App() {
             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
             return (
-              <div style={{marginTop: '20px', background: 'white', padding: '25px', borderRadius: '20px', color: '#1e293b', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>
+              <div style={{marginTop: '20px', background: 'white', padding: '20px', borderRadius: '20px', color: '#1e293b', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width: '100%', boxSizing: 'border-box', overflowX: 'auto'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems: 'center', marginBottom:'20px'}}>
                   <h3 style={{fontWeight:'900', fontSize:'1.4rem'}}>{monthNames[currentMonth].toUpperCase()} {currentYear}</h3>
                   <button className="excel-btn" style={{padding:'8px 15px', fontSize:'0.8rem', margin:0}} onClick={()=>exportExcel(todasLasTareasCalendario, `Planificacion_${monthNames[currentMonth]}`)}>📥 Exportar Mes</button>
                 </div>
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px'}}>
+                {/* El cambio clave: minmax(0, 1fr) evita que las columnas se estiren infinitamente y minWidth asegura que no se aplaste en móviles */}
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px', minWidth: '700px'}}>
                   {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => <div key={d} style={{fontWeight:'900', fontSize:'0.85rem', color:'#64748b', textAlign:'center', borderBottom:'2px solid #f1f5f9', paddingBottom:'10px'}}>{d}</div>)}
                   {blanks.map(b => <div key={`b-${b}`} style={{minHeight:'100px'}}></div>)}
                   {days.map(day => {
