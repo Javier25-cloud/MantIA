@@ -18,8 +18,21 @@ function App() {
   const [stock, setStock] = useState([]);
   const [maquinas, setMaquinas] = useState([]);
   const [tareas, setTareas] = useState([]);
+  const [planes, setPlanes] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
+
+// Lógica de Calendario
+  const tareasPorDia = tareas.reduce((acc, t) => {
+    const fecha = t.fecha_limite;
+    if (!acc[fecha]) acc[fecha] = [];
+    acc[fecha].push(t);
+    return acc;
+  }, {});
+
+  const downloadDailyOrders = (fecha) => {
+    exportExcel(tareasPorDia[fecha] || [], `Ordenes_${fecha}`);
+  };
 
   const fetchData = async () => {
     if (!user) return;
@@ -30,6 +43,7 @@ function App() {
       setStock(data.stock || []);
       setMaquinas(data.maquinas || []);
       setTareas(data.tareas || []);
+      setPlanes(data.planes || []);
       setChartData(data.chartData || []);
     } catch (err) { console.error(err); }
   };
@@ -108,6 +122,7 @@ function App() {
         <div className="dashboard-view animate-in">
           <div className="sub-nav">
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
+            <button className={subView === 'calendario' ? 's-active' : ''} onClick={()=>setSubView('calendario')}>📅 Calendario</button>
             <button className={subView === 'maquinas' ? 's-active' : ''} onClick={()=>setSubView('maquinas')}>Programar</button>
             <button className={subView === 'historial' ? 's-active' : ''} onClick={()=>setSubView('historial')}>Historial</button>
             <button className={subView === 'inventario' ? 's-active' : ''} onClick={()=>setSubView('inventario')}>Stock</button>
@@ -127,6 +142,45 @@ function App() {
                     const d = prompt("Frecuencia (Días)", m.frecuencia_dias);
                     if(p && d) fetch(`${API_URL}/api/update-machine-plan/${m.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({plan:p, dias:parseInt(d)}) }).then(()=>fetchData());
                   }} className="qr-btn" style={{width:'100%'}}>⚙ CONFIGURAR</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {subView === 'calendario' && (
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:'10px', marginTop:'20px'}}>
+              {Object.keys(tareasPorDia).sort().map(fecha => (
+                <div key={fecha} style={{background:'white', padding:'15px', borderRadius:'12px', color:'#1e293b', textAlign:'left'}}>
+                  <div style={{fontWeight:'800', borderBottom:'1px solid #eee', paddingBottom:'5px', marginBottom:'10px'}}>{fecha}</div>
+                  {tareasPorDia[fecha].map(t => (
+                    <div key={t.id} style={{fontSize:'0.75rem', background:'#f1f5f9', padding:'5px', borderRadius:'6px', marginBottom:'5px', borderLeft:`4px solid ${t.estado === 'pendiente' ? '#ef4444' : '#10b981'}`}}>
+                      <b>{t.maquina_nombre}</b><br/>{t.titulo}
+                    </div>
+                  ))}
+                  <button onClick={()=>downloadDailyOrders(fecha)} style={{width:'100%', fontSize:'0.7rem', marginTop:'10px', background:'#6366f1', color:'white', border:'none', padding:'5px', borderRadius:'6px', cursor:'pointer', fontWeight:'bold'}}>📥 Bajar Día</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {subView === 'maquinas' && (
+            <div className="machine-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'20px'}}>
+              {maquinas.map(m => (
+                <div key={m.id} className="machine-item" style={{background:'white', color:'#1e293b', padding:'20px', borderRadius:'20px', textAlign:'left'}}>
+                  <span style={{fontWeight:'900', fontSize:'1.1rem', display:'block', marginBottom:'10px'}}>{m.nombre}</span>
+                  <div style={{marginBottom:'15px', padding:'10px', background:'#f8fafc', borderRadius:'10px'}}>
+                    <span style={{fontSize:'0.7rem', color:'#64748b', fontWeight:'bold'}}>PLANES ACTIVOS:</span>
+                    {planes.filter(p => p.maquina_id === m.id).length === 0 ? <p style={{fontSize:'0.8rem', marginTop:'5px'}}>Sin planes.</p> : null}
+                    {planes.filter(p => p.maquina_id === m.id).map(p => (
+                      <div key={p.id} style={{fontSize:'0.8rem', padding:'5px 0', borderBottom:'1px solid #e2e8f0', color:'#334155'}}>
+                        🛠 <b>{p.titulo}</b> <span style={{color:'#6366f1'}}>(Cada {p.frecuencia_dias}d)</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => {
+                    const t = prompt("Nueva tarea (ej: Engrase de cadenas)");
+                    const f = prompt("Frecuencia (en días, ej: 30)");
+                    if(t && f) fetch(`${API_URL}/api/add-plan`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_id: m.id, titulo: t, frecuencia_dias: parseInt(f), empresa_id: user.empresa_id})}).then(()=>fetchData());
+                  }} className="qr-btn" style={{width:'100%', background:'#10b981'}}>+ AÑADIR PLAN</button>
                 </div>
               ))}
             </div>
@@ -157,5 +211,50 @@ function App() {
     </div>
   );
 }
+// ... (mantenemos login e imports)
+
+app.get('/api/gerencia-data', async (req, res) => {
+  const { empresa_id } = req.query;
+  try {
+    const [history, stock, machines, tasks, allPlans] = await Promise.all([
+      supabase.from('intervenciones').select('*').eq('empresa_id', empresa_id),
+      supabase.from('repuestos').select('*').eq('empresa_id', empresa_id),
+      supabase.from('maquinas').select('*').eq('empresa_id', empresa_id),
+      supabase.from('tareas').select('*').eq('empresa_id', empresa_id),
+      supabase.from('planes_mantenimiento').select('*').eq('empresa_id', empresa_id)
+    ]);
+
+    // LÓGICA DE AUTO-GENERACIÓN MULTI-PLAN
+    const hoy = new Date();
+    for (let plan of (allPlans.data || [])) {
+      const ultima = new Date(plan.ultima_fecha);
+      const diasPasados = Math.floor((hoy - ultima) / (1000 * 60 * 60 * 24));
+
+      if (diasPasados >= plan.frecuencia_dias) {
+        const maquina = machines.data.find(m => m.id === plan.maquina_id);
+        const yaExiste = tasks.data?.find(t => t.titulo === plan.titulo && t.maquina_nombre === maquina.nombre && t.estado === 'pendiente');
+        
+        if (!yaExiste) {
+          await supabase.from('tareas').insert([{
+            empresa_id,
+            maquina_nombre: maquina.nombre,
+            titulo: plan.titulo,
+            fecha_limite: hoy.toISOString().split('T')[0]
+          }]);
+        }
+      }
+    }
+
+    // Volvemos a leer tareas actualizadas
+    const finalTasks = await supabase.from('tareas').select('*').eq('empresa_id', empresa_id);
+    res.json({ history: history.data, stock: stock.data, maquinas: machines.data, tareas: finalTasks.data, planes: allPlans.data });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Endpoint para añadir un nuevo plan a una máquina
+app.post('/api/add-plan', async (req, res) => {
+  await supabase.from('planes_mantenimiento').insert([req.body]);
+  res.json({ success: true });
+});
 
 export default App;
