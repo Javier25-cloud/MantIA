@@ -22,6 +22,7 @@ function App() {
   const [chartData, setChartData] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showQR, setShowQR] = useState(null);
+  const [listaUsuarios, setListaUsuarios] = useState([]);
 
   // --- LÓGICA DE PROYECCIÓN DE CALENDARIO (60 DÍAS) ---
   const tareasPorDia = tareas.reduce((acc, t) => {
@@ -41,7 +42,6 @@ function App() {
     for (let i = 0; i < 60; i++) {
       cursorDate.setDate(cursorDate.getDate() + plan.frecuencia_dias);
       const dStr = cursorDate.toISOString().split('T')[0];
-
       const existeReal = (tareasPorDia[dStr] || []).find(t => t.titulo === plan.titulo && t.maquina_nombre === maquina.nombre);
       
       if (!existeReal) {
@@ -59,24 +59,33 @@ function App() {
 
   const todasLasTareasCalendario = Object.values(tareasPorDia).flat();
 
-  // --- OBTENCIÓN DE DATOS ---
+  // --- OBTENCIÓN DE DATOS CENTRALIZADA ---
   const fetchData = async () => {
     if (!user) return;
     try {
       const res = await fetch(`${API_URL}/api/gerencia-data?empresa_id=${user.empresa_id}`);
-      const data = await res.json();
-      setHistory(data.history || []);
-      setStock(data.stock || []);
-      setMaquinas(data.maquinas || []);
-      setTareas(data.tareas || []);
-      setPlanes(data.planes || []);
-      setChartData(data.chartData || []);
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.history || []);
+        setStock(data.stock || []);
+        setMaquinas(data.maquinas || []);
+        setTareas(data.tareas || []);
+        setPlanes(data.planes || []);
+        setChartData(data.chartData || []);
+      }
+      
+      // Carga de equipo para el Gerente
+      const resUsers = await fetch(`${API_URL}/api/users?empresa_id=${user.empresa_id}`);
+      if (resUsers.ok) {
+        const dataUsers = await resUsers.json();
+        setListaUsuarios(dataUsers || []);
+      }
+    } catch (err) { console.error("Error cargando datos:", err); }
   };
 
   useEffect(() => { fetchData(); }, [user, view]);
 
-  // --- ACCIONES ---
+  // --- ACCIONES PRINCIPALES ---
   const handleLogin = async (e) => {
     e.preventDefault();
     const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pinInput }) });
@@ -87,6 +96,7 @@ function App() {
 
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return alert("Tu navegador no soporta reconocimiento de voz.");
     const rec = new SpeechRecognition();
     rec.lang = 'es-ES';
     rec.onstart = () => { setIsRecording(true); setStatus('Escuchando...'); };
@@ -125,7 +135,7 @@ function App() {
     </div>
   );
 
-  // --- VISTA APLICACIÓN ---
+  // --- VISTA APLICACIÓN PRINCIPAL ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
       <button className="home-nav-btn" onClick={() => setUser(null)}><img src="/logo.png" alt="Logo" /><span>MantIA Inicio</span></button>
@@ -140,7 +150,7 @@ function App() {
         <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
       </nav>
 
-      {/* --- PANEL OPERARIO --- */}
+      {/* ===================== PANEL OPERARIO ===================== */}
       {view === 'operario' ? (
         <main className="animate-in" style={{width: '100%'}}>
           <section style={{textAlign:'left', marginBottom:'30px'}}>
@@ -163,14 +173,14 @@ function App() {
           <div className="voice-section">
             <button className={`record-btn-giant ${isRecording ? 'is-recording' : ''}`} onClick={startListening}><span style={{fontSize:'4rem'}}>🎤</span></button>
             <p style={{marginTop:'20px', fontWeight:'800', color:'#94a3b8'}}>{isRecording ? 'ESCUCHANDO...' : 'REPORTAR AVERÍA'}</p>
-            {status && <div className="status-pill status-ok" style={{marginTop:'10px'}}>{status}</div>}
+            {status && <div className="status-pill status-ok" style={{marginTop:'10px', display:'inline-block'}}>{status}</div>}
           </div>
 
           {iaData && (
             <div className="ia-card animate-in" style={{background:'#1e293b', padding:'20px', borderRadius:'20px', borderLeft:'5px solid #6366f1', textAlign:'left', marginTop:'20px'}}>
               <h3>Detección IA (Avería)</h3>
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
-              <p><strong>Piezas Usadas:</strong> {iaData.repuestos_usados?.join(', ')}</p>
+              <p><strong>Piezas Usadas:</strong> {iaData.repuestos_usados?.join(', ') || 'Ninguna detectada'}</p>
               <button className="confirm-button" onClick={async () => {
                 await fetch(`${API_URL}/api/save-intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id }) });
                 setIaData(null);
@@ -182,7 +192,7 @@ function App() {
         </main>
       ) : (
 
-        /* --- PANEL GERENCIA --- */
+        /* ===================== PANEL GERENCIA ===================== */
         <div className="dashboard-view animate-in" style={{width: '100%'}}>
           <div className="sub-nav">
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
@@ -193,6 +203,7 @@ function App() {
             <button className={subView === 'equipo' ? 's-active' : ''} onClick={()=>setSubView('equipo')}>👥 Equipo</button>
           </div>
 
+          {/* VISTA RESUMEN */}
           {subView === 'resumen' && (
             <div className="stats-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop:'20px'}}>
               <div className="stat-card" style={{background: '#1e293b', padding: '20px', borderRadius: '20px'}}>
@@ -219,12 +230,13 @@ function App() {
             </div>
           )}
 
+          {/* VISTA CALENDARIO CON ARREGLO CSS GRID */}
           {subView === 'calendario' && (() => {
             const currentYear = today.getFullYear();
             const currentMonth = today.getMonth();
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
             const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-            const emptySlots = firstDay === 0 ? 6 : firstDay - 1; // Lunes = 1
+            const emptySlots = firstDay === 0 ? 6 : firstDay - 1; 
             const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
             const blanks = Array.from({length: emptySlots}, (_, i) => i);
             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -235,7 +247,6 @@ function App() {
                   <h3 style={{fontWeight:'900', fontSize:'1.4rem'}}>{monthNames[currentMonth].toUpperCase()} {currentYear}</h3>
                   <button className="excel-btn" style={{padding:'8px 15px', fontSize:'0.8rem', margin:0}} onClick={()=>exportExcel(todasLasTareasCalendario, `Planificacion_${monthNames[currentMonth]}`)}>📥 Exportar Mes</button>
                 </div>
-                {/* El cambio clave: minmax(0, 1fr) evita que las columnas se estiren infinitamente y minWidth asegura que no se aplaste en móviles */}
                 <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px', minWidth: '700px'}}>
                   {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => <div key={d} style={{fontWeight:'900', fontSize:'0.85rem', color:'#64748b', textAlign:'center', borderBottom:'2px solid #f1f5f9', paddingBottom:'10px'}}>{d}</div>)}
                   {blanks.map(b => <div key={`b-${b}`} style={{minHeight:'100px'}}></div>)}
@@ -266,6 +277,7 @@ function App() {
             );
           })()}
 
+          {/* VISTA MAQUINARIA */}
           {subView === 'maquinas' && (
             <div className="machine-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'20px', marginTop:'20px'}}>
               {maquinas.map(m => (
@@ -298,6 +310,7 @@ function App() {
             </div>
           )}
 
+          {/* VISTA HISTORIAL */}
           {subView === 'historial' && (
             <div style={{marginTop:'20px'}}>
               <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(history, "Historial_Averias")}>📥 Exportar Historial</button></div>
@@ -316,6 +329,7 @@ function App() {
             </div>
           )}
 
+          {/* VISTA INVENTARIO */}
           {subView === 'inventario' && (
             <div style={{marginTop:'20px'}}>
               <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(stock, "Estado_Inventario")}>📥 Exportar Stock</button></div>
@@ -336,48 +350,43 @@ function App() {
                 </tbody>
               </table>
             </div>
-            
-          )}{subView === 'equipo' && (() => {
-            const [listaUsuarios, setListaUsuarios] = useState([]);
-            
-            useEffect(() => {
-              fetch(`${API_URL}/api/users?empresa_id=${user.empresa_id}`)
-                .then(res => res.json())
-                .then(data => setListaUsuarios(data));
-            }, []);
+          )}
 
-            return (
-              <div style={{marginTop:'20px', background:'white', padding:'25px', borderRadius:'20px', textAlign:'left', color:'#1e293b'}}>
-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
-                  <h3 style={{fontWeight:'900'}}>GESTIÓN DE TÉCNICOS</h3>
-                  <button className="confirm-button" style={{padding:'8px 15px', width:'auto', background:'#10b981'}} onClick={async () => {
-                    const n = prompt("Nombre del operario");
-                    const p = prompt("Asigna un PIN de 4 números");
-                    if(n && p) {
-                      await fetch(`${API_URL}/api/users`, {
-                        method:'POST',
-                        headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({nombre: n, pin_acceso: p, empresa_id: user.empresa_id, rol: 'operario', email: `${n.toLowerCase().replace(' ','')}@mantia.com`})
-                      });
-                      window.location.reload(); // Recarga simple para actualizar
-                    }
-                  }}>+ NUEVO OPERARIO</button>
-                </div>
-                <table className="history-table">
-                  <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead>
-                  <tbody>
-                    {listaUsuarios.map(u => (
-                      <tr key={u.id}>
-                        <td style={{fontWeight:'700'}}>{u.nombre}</td>
-                        <td>{u.rol}</td>
-                        <td><span className="status-pill status-ok">ACTIVO</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* VISTA EQUIPO */}
+          {subView === 'equipo' && (
+            <div style={{marginTop:'20px', background:'white', padding:'25px', borderRadius:'20px', textAlign:'left', color:'#1e293b'}}>
+              <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
+                <h3 style={{fontWeight:'900'}}>GESTIÓN DE TÉCNICOS</h3>
+                <button className="confirm-button" style={{padding:'8px 15px', width:'auto', background:'#10b981'}} onClick={async () => {
+                  const n = prompt("Nombre del operario");
+                  const p = prompt("Asigna un PIN de 4 números");
+                  if(n && p) {
+                    await fetch(`${API_URL}/api/users`, {
+                      method:'POST',
+                      headers:{'Content-Type':'application/json'},
+                      body:JSON.stringify({nombre: n, pin_acceso: p, empresa_id: user.empresa_id, rol: 'operario', email: `${n.toLowerCase().replace(/ /g, '')}@mantia.com`})
+                    });
+                    fetchData();
+                  }
+                }}>+ NUEVO OPERARIO</button>
               </div>
-            );
-          })()}
+              <table className="history-table">
+                <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead>
+                <tbody>
+                  {listaUsuarios.map(u => (
+                    <tr key={u.id}>
+                      <td style={{fontWeight:'700'}}>{u.nombre}</td>
+                      <td style={{textTransform:'capitalize'}}>{u.rol}</td>
+                      <td><span className="status-pill status-ok">ACTIVO</span></td>
+                    </tr>
+                  ))}
+                  {listaUsuarios.length === 0 && (
+                    <tr><td colSpan="3" style={{textAlign:'center', color:'#94a3b8'}}>No hay operarios registrados en el equipo.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión</button>
         </div>

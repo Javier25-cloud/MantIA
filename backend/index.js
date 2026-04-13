@@ -11,30 +11,26 @@ app.use(express.json());
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// PANEL SUPERADMIN: Ver consumo global (Solo para Javier)
-app.get('/api/admin/stats', async (req, res) => {
-  const { user_role } = req.query; // En producción esto vendría de un Token JWT
-  if (user_role !== 'superadmin') return res.status(403).send("Acceso denegado");
-
-  try {
-    const { data: stats, error } = await supabase
-      .from('usuarios')
-      .select('nombre, peticiones_ia_mes, empresas(nombre)')
-      .order('peticiones_ia_mes', { ascending: false });
-    
-    res.json(stats);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // 1. LOGIN
 app.post('/api/login', (req, res) => {
   const { pinInput } = req.body;
+  // En producción, esto comprobaría el PIN en la tabla 'usuarios'
   if (pinInput === "1234") {
     res.json({ success: true, user: { id: "u01", nombre: "Javier Caballero", empresa_id: "bbbacdf4-bbc2-494f-9a51-d732cf1cbcaa", rol: "gerente" } });
   } else { res.status(401).json({ success: false }); }
 });
 
-// 2. MOTOR DE AUTOGENERACIÓN Y DATOS GERENCIA
+// 2. PANEL SUPERADMIN: Ver consumo global (Solo para ti)
+app.get('/api/admin/stats', async (req, res) => {
+  const { user_role } = req.query;
+  if (user_role !== 'superadmin') return res.status(403).send("Acceso denegado");
+  try {
+    const { data: stats, error } = await supabase.from('usuarios').select('nombre, peticiones_ia_mes, empresas(nombre)').order('peticiones_ia_mes', { ascending: false });
+    res.json(stats);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 3. MOTOR DE AUTOGENERACIÓN Y DATOS GERENCIA
 app.get('/api/gerencia-data', async (req, res) => {
   const { empresa_id } = req.query;
   try {
@@ -75,14 +71,14 @@ app.get('/api/gerencia-data', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 3. AÑADIR NUEVO PLAN MULTI-MÁQUINA
+// 4. AÑADIR NUEVO PLAN MULTI-MÁQUINA
 app.post('/api/add-plan', async (req, res) => {
   const { error } = await supabase.from('planes_mantenimiento').insert([req.body]);
   if (error) return res.status(400).json({ success: false, error: error.message });
   res.json({ success: true });
 });
 
-// GESTIÓN DE EQUIPO: Obtener operarios de la empresa
+// 5. GESTIÓN DE EQUIPO: Obtener y Crear Operarios
 app.get('/api/users', async (req, res) => {
   const { empresa_id } = req.query;
   const { data, error } = await supabase.from('usuarios').select('id, nombre, email, rol, activo').eq('empresa_id', empresa_id).eq('rol', 'operario');
@@ -90,27 +86,13 @@ app.get('/api/users', async (req, res) => {
   res.json(data);
 });
 
-// CREAR NUEVO OPERARIO
 app.post('/api/users', async (req, res) => {
   const { error } = await supabase.from('usuarios').insert([req.body]);
   if (error) return res.status(400).json({ success: false, error: error.message });
   res.json({ success: true });
-});
-// GESTIÓN DE EQUIPO: Obtener operarios de la empresa
-app.get('/api/users', async (req, res) => {
-  const { empresa_id } = req.query;
-  const { data, error } = await supabase.from('usuarios').select('id, nombre, email, rol, activo').eq('empresa_id', empresa_id).eq('rol', 'operario');
-  if (error) return res.status(400).json({ error: error.message });
-  res.json(data);
 });
 
-// CREAR NUEVO OPERARIO
-app.post('/api/users', async (req, res) => {
-  const { error } = await supabase.from('usuarios').insert([req.body]);
-  if (error) return res.status(400).json({ success: false, error: error.message });
-  res.json({ success: true });
-});
-// 4. COMPLETAR TAREA Y RESETEAR RELOJ DEL PLAN
+// 6. COMPLETAR TAREA Y RESETEAR RELOJ DEL PLAN
 app.put('/api/complete-task/:id', async (req, res) => {
   const { maquina_nombre, titulo_tarea } = req.body;
   await supabase.from('tareas').update({ estado: 'completada' }).eq('id', req.params.id);
@@ -125,7 +107,7 @@ app.put('/api/complete-task/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// 5. PROCESAMIENTO IA POR VOZ
+// 7. PROCESAMIENTO IA POR VOZ
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
@@ -137,7 +119,7 @@ app.post('/api/process-text', async (req, res) => {
   } catch (e) { res.status(500).json({ error: "Error IA" }); }
 });
 
-// 6. GUARDAR REPORTE DE AVERÍA (Operario)
+// 8. GUARDAR REPORTE DE AVERÍA (Operario)
 app.post('/api/save-intervention', async (req, res) => {
   const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
   await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
@@ -145,4 +127,4 @@ app.post('/api/save-intervention', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor MantIA V11 Online en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor MantIA SaaS Online en puerto ${PORT}`));
