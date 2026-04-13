@@ -12,6 +12,7 @@ function App() {
   const [pinInput, setPinInput] = useState('');
   const [view, setView] = useState('operario');
   const [subView, setSubView] = useState('resumen');
+  
   const [status, setStatus] = useState('');
   const [iaData, setIaData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -24,7 +25,7 @@ function App() {
   const [showQR, setShowQR] = useState(null);
   const [listaUsuarios, setListaUsuarios] = useState([]);
 
-  // --- LÓGICA DE PROYECCIÓN DE CALENDARIO (60 DÍAS) ---
+  // --- LÓGICA DE CALENDARIO Y PROYECCIÓN A 60 DÍAS ---
   const tareasPorDia = tareas.reduce((acc, t) => {
     const fecha = t.fecha_limite;
     if (!acc[fecha]) acc[fecha] = [];
@@ -42,6 +43,7 @@ function App() {
     for (let i = 0; i < 60; i++) {
       cursorDate.setDate(cursorDate.getDate() + plan.frecuencia_dias);
       const dStr = cursorDate.toISOString().split('T')[0];
+
       const existeReal = (tareasPorDia[dStr] || []).find(t => t.titulo === plan.titulo && t.maquina_nombre === maquina.nombre);
       
       if (!existeReal) {
@@ -59,7 +61,7 @@ function App() {
 
   const todasLasTareasCalendario = Object.values(tareasPorDia).flat();
 
-  // --- OBTENCIÓN DE DATOS CENTRALIZADA ---
+  // --- CARGA DE DATOS CENTRALIZADA ---
   const fetchData = async () => {
     if (!user) return;
     try {
@@ -74,7 +76,6 @@ function App() {
         setChartData(data.chartData || []);
       }
       
-      // Carga de equipo para el Gerente
       const resUsers = await fetch(`${API_URL}/api/users?empresa_id=${user.empresa_id}`);
       if (resUsers.ok) {
         const dataUsers = await resUsers.json();
@@ -85,13 +86,22 @@ function App() {
 
   useEffect(() => { fetchData(); }, [user, view]);
 
-  // --- ACCIONES PRINCIPALES ---
+  // --- ACCIONES ---
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pinInput }) });
+    const res = await fetch(`${API_URL}/api/login`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ pinInput }) 
+    });
     const result = await res.json();
-    if (result.success) setUser(result.user);
-    else alert("PIN Incorrecto");
+    if (result.success) {
+      setUser(result.user);
+      if (result.user.rol === 'operario') setView('operario');
+      else setView('gerencia');
+    } else {
+      alert("PIN incorrecto o inactivo.");
+    }
   };
 
   const startListening = () => {
@@ -103,7 +113,11 @@ function App() {
     rec.onresult = async (e) => {
       const text = e.results[0][0].transcript;
       setStatus('Analizando con IA...');
-      const res = await fetch(`${API_URL}/api/process-text`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      const res = await fetch(`${API_URL}/api/process-text`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ text }) 
+      });
       const r = await res.json();
       setIaData(r.data);
       setStatus('');
@@ -119,7 +133,7 @@ function App() {
     XLSX.writeFile(wb, `${name}.xlsx`);
   };
 
-  // --- VISTA DE LOGIN ---
+  // --- VISTA LOGIN ---
   if (!user) return (
     <div className="container login-screen">
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
@@ -128,46 +142,55 @@ function App() {
       </div>
       <div className="login-card animate-in">
         <form onSubmit={handleLogin}>
-          <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="••••" autoFocus />
+          <input type="password" value={pinInput} onChange={(e)=>setPinInput(e.target.value)} className="pin-input" placeholder="Introduce tu PIN" autoFocus />
           <button type="submit" className="confirm-button">ENTRAR</button>
         </form>
       </div>
     </div>
   );
 
-  // --- VISTA APLICACIÓN PRINCIPAL ---
+  // --- VISTA APLICACIÓN ---
   return (
     <div className="container" style={{maxWidth: view === 'gerencia' ? '1100px' : '450px'}}>
-      <button className="home-nav-btn" onClick={() => setUser(null)}><img src="/logo.png" alt="Logo" /><span>MantIA Inicio</span></button>
+      <button className="home-nav-btn" onClick={() => setUser(null)}><img src="/logo.png" alt="Logo" /><span>Inicio</span></button>
       
       <header style={{ textAlign: 'center', marginBottom: '30px' }}>
         <img src="/logo.png" alt="Logo" style={{ height: '90px' }} />
         <h2 className="brand-name" style={{fontSize: '2rem'}}>MantIA</h2>
       </header>
 
-      <nav className="nav-tabs">
-        <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
-        <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
-      </nav>
+      {user.rol !== 'operario' && (
+        <nav className="nav-tabs">
+          <button className={view === 'operario' ? 'active' : ''} onClick={() => setView('operario')}>👷 Reporte</button>
+          <button className={view === 'gerencia' ? 'active' : ''} onClick={() => setView('gerencia')}>📊 Gerencia</button>
+        </nav>
+      )}
 
       {/* ===================== PANEL OPERARIO ===================== */}
       {view === 'operario' ? (
         <main className="animate-in" style={{width: '100%'}}>
           <section style={{textAlign:'left', marginBottom:'30px'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-              <h3 style={{color: '#94a3b8', fontSize: '0.9rem'}}>📋 TAREAS DE HOY</h3>
+              <h3 style={{color: '#94a3b8', fontSize: '0.9rem'}}>📋 TAREAS PENDIENTES</h3>
               <button className="excel-btn" style={{padding:'5px 10px', fontSize:'0.7rem', margin:0}} onClick={() => exportExcel(tareas.filter(t=>t.estado==='pendiente'), "Tareas_Hoy")}>📥 Bajar Hoja</button>
             </div>
-            {tareas.filter(t => t.estado === 'pendiente').map(t => (
-              <div key={t.id} style={{background: 'white', padding:'15px', borderRadius:'15px', color:'#1e293b', marginBottom:'10px', borderLeft:'6px solid #6366f1'}}>
-                <div style={{fontWeight:'800'}}>{t.titulo}</div>
-                <div style={{fontSize:'0.75rem', color:'#64748b'}}>{t.maquina_nombre} - Límite: {t.fecha_limite}</div>
-                <button onClick={async () => {
-                  await fetch(`${API_URL}/api/complete-task/${t.id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_nombre: t.maquina_nombre, titulo_tarea: t.titulo}) });
-                  fetchData();
-                }} style={{marginTop:'10px', background:'#10b981', color:'white', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'700', width:'100%'}}>HECHO ✓</button>
+            
+            {tareas.filter(t => t.estado === 'pendiente').length === 0 ? (
+              <div style={{background: 'rgba(255,255,255,0.05)', padding:'20px', borderRadius:'15px', textAlign:'center', color:'#94a3b8'}}>
+                No hay tareas preventivas pendientes para hoy.
               </div>
-            ))}
+            ) : (
+              tareas.filter(t => t.estado === 'pendiente').map(t => (
+                <div key={t.id} style={{background: 'white', padding:'15px', borderRadius:'15px', color:'#1e293b', marginBottom:'10px', borderLeft:'6px solid #6366f1'}}>
+                  <div style={{fontWeight:'800'}}>{t.titulo}</div>
+                  <div style={{fontSize:'0.75rem', color:'#64748b'}}>{t.maquina_nombre} - Límite: {t.fecha_limite}</div>
+                  <button onClick={async () => {
+                    await fetch(`${API_URL}/api/complete-task/${t.id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maquina_nombre: t.maquina_nombre, titulo_tarea: t.titulo}) });
+                    fetchData();
+                  }} style={{marginTop:'10px', background:'#10b981', color:'white', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'700', width:'100%'}}>HECHO ✓</button>
+                </div>
+              ))
+            )}
           </section>
 
           <div className="voice-section">
@@ -182,7 +205,7 @@ function App() {
               <p><strong>Máquina:</strong> {iaData.maquina_nombre}</p>
               <p><strong>Piezas Usadas:</strong> {iaData.repuestos_usados?.join(', ') || 'Ninguna detectada'}</p>
               <button className="confirm-button" onClick={async () => {
-                await fetch(`${API_URL}/api/save-intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id }) });
+                await fetch(`${API_URL}/api/save-intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...iaData, empresa_id: user.empresa_id, usuario_id: user.id, fecha: new Date().toISOString() }) });
                 setIaData(null);
                 alert("Avería registrada con éxito.");
                 fetchData();
@@ -198,9 +221,9 @@ function App() {
             <button className={subView === 'resumen' ? 's-active' : ''} onClick={()=>setSubView('resumen')}>Resumen</button>
             <button className={subView === 'calendario' ? 's-active' : ''} onClick={()=>setSubView('calendario')}>📅 Calendario</button>
             <button className={subView === 'maquinas' ? 's-active' : ''} onClick={()=>setSubView('maquinas')}>Maquinaria</button>
+            <button className={subView === 'equipo' ? 's-active' : ''} onClick={()=>setSubView('equipo')}>👥 Equipo</button>
             <button className={subView === 'historial' ? 's-active' : ''} onClick={()=>setSubView('historial')}>Historial</button>
             <button className={subView === 'inventario' ? 's-active' : ''} onClick={()=>setSubView('inventario')}>Stock</button>
-            <button className={subView === 'equipo' ? 's-active' : ''} onClick={()=>setSubView('equipo')}>👥 Equipo</button>
           </div>
 
           {/* VISTA RESUMEN */}
@@ -230,7 +253,7 @@ function App() {
             </div>
           )}
 
-          {/* VISTA CALENDARIO CON ARREGLO CSS GRID */}
+          {/* VISTA CALENDARIO (Con el fix de grid centrado) */}
           {subView === 'calendario' && (() => {
             const currentYear = today.getFullYear();
             const currentMonth = today.getMonth();
@@ -310,48 +333,6 @@ function App() {
             </div>
           )}
 
-          {/* VISTA HISTORIAL */}
-          {subView === 'historial' && (
-            <div style={{marginTop:'20px'}}>
-              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(history, "Historial_Averias")}>📥 Exportar Historial</button></div>
-              <table className="history-table">
-                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas Usadas</th></tr></thead>
-                <tbody>
-                  {history.map(h => (
-                    <tr key={h.id}>
-                      <td>{new Date(h.fecha).toLocaleDateString()}</td>
-                      <td style={{fontWeight:'700'}}>{h.maquina}</td>
-                      <td style={{fontSize:'0.85rem'}}>{h.repuestos?.join(', ') || 'Ninguna'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* VISTA INVENTARIO */}
-          {subView === 'inventario' && (
-            <div style={{marginTop:'20px'}}>
-              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(stock, "Estado_Inventario")}>📥 Exportar Stock</button></div>
-              <table className="history-table">
-                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
-                <tbody>
-                  {stock.map(s => (
-                    <tr key={s.id}>
-                      <td>{s.nombre}</td>
-                      <td style={{fontWeight:'800'}}>{s.stock_actual}</td>
-                      <td>
-                        <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
-                          {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
           {/* VISTA EQUIPO */}
           {subView === 'equipo' && (
             <div style={{marginTop:'20px', background:'white', padding:'25px', borderRadius:'20px', textAlign:'left', color:'#1e293b'}}>
@@ -381,8 +362,52 @@ function App() {
                     </tr>
                   ))}
                   {listaUsuarios.length === 0 && (
-                    <tr><td colSpan="3" style={{textAlign:'center', color:'#94a3b8'}}>No hay operarios registrados en el equipo.</td></tr>
+                    <tr><td colSpan="3" style={{textAlign:'center', color:'#94a3b8'}}>No hay técnicos registrados.</td></tr>
                   )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* VISTA HISTORIAL */}
+          {subView === 'historial' && (
+            <div style={{marginTop:'20px'}}>
+              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(history, "Historial_Averias")}>📥 Exportar Historial</button></div>
+              <table className="history-table">
+                <thead><tr><th>Fecha</th><th>Máquina</th><th>Piezas Usadas</th></tr></thead>
+                <tbody>
+                  {history.length === 0 && <tr><td colSpan="3" style={{textAlign:'center', color:'#94a3b8', padding:'20px'}}>No hay intervenciones registradas.</td></tr>}
+                  {history.map(h => (
+                    <tr key={h.id}>
+                      <td>{new Date(h.fecha).toLocaleDateString()}</td>
+                      <td style={{fontWeight:'700'}}>{h.maquina}</td>
+                      <td style={{fontSize:'0.85rem'}}>{h.repuestos?.join(', ') || 'Ninguna'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* VISTA INVENTARIO */}
+          {subView === 'inventario' && (
+            <div style={{marginTop:'20px'}}>
+              <div style={{textAlign:'left', marginBottom:'15px'}}><button className="excel-btn" onClick={() => exportExcel(stock, "Estado_Inventario")}>📥 Exportar Stock</button></div>
+              <table className="history-table">
+                <thead><tr><th>Repuesto</th><th>Stock</th><th>Estado</th></tr></thead>
+                <tbody>
+                  {stock.length === 0 && <tr><td colSpan="3" style={{textAlign:'center', color:'#94a3b8', padding:'20px'}}>No hay piezas en el inventario.</td></tr>}
+                  {stock.map(s => (
+                    <tr key={s.id}>
+                      <td>{s.nombre}</td>
+                      <td style={{fontWeight:'800'}}>{s.stock_actual}</td>
+                      <td>
+                        <span className={`status-pill ${s.stock_actual <= s.stock_minimo ? 'status-warn' : 'status-ok'}`}>
+                          {s.stock_actual <= s.stock_minimo ? '⚠️ PEDIR' : '✅ OK'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

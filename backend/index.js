@@ -11,21 +11,34 @@ app.use(express.json());
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 1. LOGIN
-app.post('/api/login', (req, res) => {
+// 1. LOGIN DINÁMICO (Con roles y seguridad)
+app.post('/api/login', async (req, res) => {
   const { pinInput } = req.body;
-  // En producción, esto comprobaría el PIN en la tabla 'usuarios'
-  if (pinInput === "1234") {
-    res.json({ success: true, user: { id: "u01", nombre: "Javier Caballero", empresa_id: "bbbacdf4-bbc2-494f-9a51-d732cf1cbcaa", rol: "gerente" } });
-  } else { res.status(401).json({ success: false }); }
+  
+  try {
+    const { data: user, error } = await supabase
+      .from('usuarios')
+      .select('id, nombre, empresa_id, rol')
+      .eq('pin_acceso', pinInput)
+      .eq('activo', true)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ success: false, message: "PIN incorrecto o inactivo" });
+    }
+
+    res.json({ success: true, user });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-// 2. PANEL SUPERADMIN: Ver consumo global (Solo para ti)
+// 2. PANEL SUPERADMIN (Solo Javier)
 app.get('/api/admin/stats', async (req, res) => {
   const { user_role } = req.query;
   if (user_role !== 'superadmin') return res.status(403).send("Acceso denegado");
   try {
-    const { data: stats, error } = await supabase.from('usuarios').select('nombre, peticiones_ia_mes, empresas(nombre)').order('peticiones_ia_mes', { ascending: false });
+    const { data: stats } = await supabase.from('usuarios').select('nombre, peticiones_ia_mes, empresas(nombre)').order('peticiones_ia_mes', { ascending: false });
     res.json(stats);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -43,7 +56,7 @@ app.get('/api/gerencia-data', async (req, res) => {
     ]);
 
     const hoy = new Date();
-    // Bucle inteligente que revisa todos los planes
+    // Bucle inteligente que revisa todos los planes y autogenera tareas
     for (let plan of (allPlans.data || [])) {
       const ultima = new Date(plan.ultima_fecha);
       const diasPasados = Math.floor((hoy - ultima) / (1000 * 60 * 60 * 24));
@@ -71,17 +84,16 @@ app.get('/api/gerencia-data', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 4. AÑADIR NUEVO PLAN MULTI-MÁQUINA
+// 4. PLANES, EQUIPO Y TAREAS
 app.post('/api/add-plan', async (req, res) => {
   const { error } = await supabase.from('planes_mantenimiento').insert([req.body]);
   if (error) return res.status(400).json({ success: false, error: error.message });
   res.json({ success: true });
 });
 
-// 5. GESTIÓN DE EQUIPO: Obtener y Crear Operarios
 app.get('/api/users', async (req, res) => {
   const { empresa_id } = req.query;
-  const { data, error } = await supabase.from('usuarios').select('id, nombre, email, rol, activo').eq('empresa_id', empresa_id).eq('rol', 'operario');
+  const { data, error } = await supabase.from('usuarios').select('id, nombre, email, rol, activo').eq('empresa_id', empresa_id);
   if (error) return res.status(400).json({ error: error.message });
   res.json(data);
 });
@@ -92,7 +104,6 @@ app.post('/api/users', async (req, res) => {
   res.json({ success: true });
 });
 
-// 6. COMPLETAR TAREA Y RESETEAR RELOJ DEL PLAN
 app.put('/api/complete-task/:id', async (req, res) => {
   const { maquina_nombre, titulo_tarea } = req.body;
   await supabase.from('tareas').update({ estado: 'completada' }).eq('id', req.params.id);
@@ -107,22 +118,22 @@ app.put('/api/complete-task/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// 7. PROCESAMIENTO IA POR VOZ
+// 5. PROCESAMIENTO IA POR VOZ
 app.post('/api/process-text', async (req, res) => {
   const { text } = req.body;
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}.`;
+    const prompt = `Analiza: "${text}". Responde SOLO JSON: {"maquina_nombre": "...", "repuestos_usados": ["..."]}. Si no hay repuestos, deja el array vacío.`;
     const result = await model.generateContent(prompt);
     const jsonText = result.response.text().replace(/```json|```/g, "").trim();
     res.json({ success: true, data: JSON.parse(jsonText) });
   } catch (e) { res.status(500).json({ error: "Error IA" }); }
 });
 
-// 8. GUARDAR REPORTE DE AVERÍA (Operario)
+// 6. GUARDAR REPORTE DE AVERÍA (Operario)
 app.post('/api/save-intervention', async (req, res) => {
-  const { maquina_nombre, repuestos_usados, empresa_id, usuario_id } = req.body;
-  await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: new Date().toISOString() }]);
+  const { maquina_nombre, repuestos_usados, empresa_id, usuario_id, fecha } = req.body;
+  await supabase.from('intervenciones').insert([{ maquina: maquina_nombre, repuestos: repuestos_usados, empresa_id, usuario_id, fecha: fecha || new Date().toISOString() }]);
   res.json({ success: true });
 });
 
