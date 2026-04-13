@@ -190,6 +190,7 @@ function App() {
             <button className={subView === 'maquinas' ? 's-active' : ''} onClick={()=>setSubView('maquinas')}>Maquinaria</button>
             <button className={subView === 'historial' ? 's-active' : ''} onClick={()=>setSubView('historial')}>Historial</button>
             <button className={subView === 'inventario' ? 's-active' : ''} onClick={()=>setSubView('inventario')}>Stock</button>
+            <button className={subView === 'equipo' ? 's-active' : ''} onClick={()=>setSubView('equipo')}>👥 Equipo</button>
           </div>
 
           {subView === 'resumen' && (
@@ -335,7 +336,48 @@ function App() {
                 </tbody>
               </table>
             </div>
-          )}
+            
+          )}{subView === 'equipo' && (() => {
+            const [listaUsuarios, setListaUsuarios] = useState([]);
+            
+            useEffect(() => {
+              fetch(`${API_URL}/api/users?empresa_id=${user.empresa_id}`)
+                .then(res => res.json())
+                .then(data => setListaUsuarios(data));
+            }, []);
+
+            return (
+              <div style={{marginTop:'20px', background:'white', padding:'25px', borderRadius:'20px', textAlign:'left', color:'#1e293b'}}>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
+                  <h3 style={{fontWeight:'900'}}>GESTIÓN DE TÉCNICOS</h3>
+                  <button className="confirm-button" style={{padding:'8px 15px', width:'auto', background:'#10b981'}} onClick={async () => {
+                    const n = prompt("Nombre del operario");
+                    const p = prompt("Asigna un PIN de 4 números");
+                    if(n && p) {
+                      await fetch(`${API_URL}/api/users`, {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({nombre: n, pin_acceso: p, empresa_id: user.empresa_id, rol: 'operario', email: `${n.toLowerCase().replace(' ','')}@mantia.com`})
+                      });
+                      window.location.reload(); // Recarga simple para actualizar
+                    }
+                  }}>+ NUEVO OPERARIO</button>
+                </div>
+                <table className="history-table">
+                  <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead>
+                  <tbody>
+                    {listaUsuarios.map(u => (
+                      <tr key={u.id}>
+                        <td style={{fontWeight:'700'}}>{u.nombre}</td>
+                        <td>{u.rol}</td>
+                        <td><span className="status-pill status-ok">ACTIVO</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
           <button className="logout-btn" onClick={()=>setUser(null)}>Cerrar Sesión</button>
         </div>

@@ -11,6 +11,21 @@ app.use(express.json());
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// PANEL SUPERADMIN: Ver consumo global (Solo para Javier)
+app.get('/api/admin/stats', async (req, res) => {
+  const { user_role } = req.query; // En producción esto vendría de un Token JWT
+  if (user_role !== 'superadmin') return res.status(403).send("Acceso denegado");
+
+  try {
+    const { data: stats, error } = await supabase
+      .from('usuarios')
+      .select('nombre, peticiones_ia_mes, empresas(nombre)')
+      .order('peticiones_ia_mes', { ascending: false });
+    
+    res.json(stats);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 1. LOGIN
 app.post('/api/login', (req, res) => {
   const { pinInput } = req.body;
@@ -67,6 +82,34 @@ app.post('/api/add-plan', async (req, res) => {
   res.json({ success: true });
 });
 
+// GESTIÓN DE EQUIPO: Obtener operarios de la empresa
+app.get('/api/users', async (req, res) => {
+  const { empresa_id } = req.query;
+  const { data, error } = await supabase.from('usuarios').select('id, nombre, email, rol, activo').eq('empresa_id', empresa_id).eq('rol', 'operario');
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// CREAR NUEVO OPERARIO
+app.post('/api/users', async (req, res) => {
+  const { error } = await supabase.from('usuarios').insert([req.body]);
+  if (error) return res.status(400).json({ success: false, error: error.message });
+  res.json({ success: true });
+});
+// GESTIÓN DE EQUIPO: Obtener operarios de la empresa
+app.get('/api/users', async (req, res) => {
+  const { empresa_id } = req.query;
+  const { data, error } = await supabase.from('usuarios').select('id, nombre, email, rol, activo').eq('empresa_id', empresa_id).eq('rol', 'operario');
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// CREAR NUEVO OPERARIO
+app.post('/api/users', async (req, res) => {
+  const { error } = await supabase.from('usuarios').insert([req.body]);
+  if (error) return res.status(400).json({ success: false, error: error.message });
+  res.json({ success: true });
+});
 // 4. COMPLETAR TAREA Y RESETEAR RELOJ DEL PLAN
 app.put('/api/complete-task/:id', async (req, res) => {
   const { maquina_nombre, titulo_tarea } = req.body;
